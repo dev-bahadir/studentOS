@@ -31,7 +31,7 @@ export default function Home() {
         
         <div className="flex gap-4 justify-center">
           <Link 
-            href="/auth/login"
+            href="/login"
             className="px-8 py-4 bg-white text-indigo-900 rounded-full font-bold text-lg hover:bg-blue-50 transition shadow-xl hover:scale-105"
           >
             Starten 🚀
