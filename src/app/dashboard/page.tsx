@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [xpData, setXpData] = useState({ xp: 0, level: 1, progress: 0 });
   const [loading, setLoading] = useState(true);
 
+
   useEffect(() => {
     if (user) {
       fetchStats();
