@@ -31,17 +31,23 @@ export default function LoginPage() {
     }
   };
 
-  const handleResetPassword = async () => {
-    const emailInput = prompt("Bitte gib deine E-Mail-Adresse ein:");
-    if (emailInput) {
-      const { error } = await supabase.auth.resetPasswordForEmail(emailInput, {
-        redirectTo: 'https://student-os.vercel.app/reset-password',
-      });
-      if (error) alert("Fehler: " + error.message);
-      else alert("Check deine E-Mails! Der Link zum Zurücksetzen wurde gesendet.");
+const handleResetPassword = async () => {
+  const emailInput = prompt("Bitte gib deine E-Mail-Adresse ein:");
+  if (emailInput) {
+    // Wir nutzen hier die aktuelle URL dynamisch, damit es überall klappt
+    const siteUrl = window.location.origin; 
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(emailInput, {
+      redirectTo: `${siteUrl}/reset-password`,
+    });
+    
+    if (error) {
+      alert("Fehler: " + error.message);
+    } else {
+      alert("Check deine E-Mails! Der Link führt dich direkt zum neuen Passwort-Formular.");
     }
-  };
-
+  }
+};
   const handleSignUp = async () => {
     setLoading(true);
     setError(null);
