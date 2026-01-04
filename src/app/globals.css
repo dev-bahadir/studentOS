@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- THEME DEFINITIONEN --- */
+
+/* 1. MODERN (Standard - Blau/Clean) */
+.theme-modern {
+  --bg-canvas: #f9fafb;     /* Heller Hintergrund */
+  --bg-panel: #ffffff;      /* Weiße Karten */
+  --text-ink: #1f2937;      /* Dunkler Text */
+  --color-primary: #2563eb; /* Blau */
+  --color-accent: #7c3aed;  /* Lila */
+}
+
+/* 2. DARK MODE (Hacker Style) */
+.theme-dark {
+  --bg-canvas: #0f172a;     /* Tiefes Dunkelblau */
+  --bg-panel: #1e293b;      /* Etwas helleres Dunkelblau */
+  --text-ink: #e2e8f0;      /* Helles Grau */
+  --color-primary: #38bdf8; /* Neon Blau */
+  --color-accent: #f472b6;  /* Neon Pink */
+}
+
+/* 3. PASTEL (Aesthetic / Chill) */
+.theme-pastel {
+  --bg-canvas: #fdf2f8;     /* Ganz helles Rosa */
+  --bg-panel: #ffffff;
+  --text-ink: #4a4a4a;      /* Sanftes Grau */
+  --color-primary: #f472b6; /* Sanftes Pink */
+  --color-accent: #34d399;  /* Mintgrün */
+}
+
+/* --- ANWENDUNG DER VARIABLEN --- */
+/* Wir nutzen Tailwind Klassen, mappen sie aber auf unsere Variablen */
+@layer base {
+  body {
+    @apply bg-[var(--bg-canvas)] text-[var(--text-ink)];
+  }
+}
+
+/* Hilfsklassen für unsere Komponenten */
+.bg-canvas { background-color: var(--bg-canvas); }
+.bg-panel { background-color: var(--bg-panel); }
+.text-ink { color: var(--text-ink); }
+.text-primary { color: var(--color-primary); }
+.bg-primary { background-color: var(--color-primary); }
