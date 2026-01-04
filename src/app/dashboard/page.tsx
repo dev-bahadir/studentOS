@@ -9,7 +9,6 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../components/providers/AuthProvider';
 import QuotePlayer from '../../components/QuotePlayer';
 import { useTheme } from '../../components/providers/ThemeProvider';
-import FormulaCard from '../../components/FormulaCard';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -20,7 +19,9 @@ export default function Dashboard() {
   const [isApproved, setIsApproved] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Formel States
   const [formulas, setFormulas] = useState<any[]>([]);
+  const [favPreview, setFavPreview] = useState<string | null>(null);
   const [jsonInput, setJsonInput] = useState('');
   const [importing, setImporting] = useState(false);
 
@@ -31,19 +32,18 @@ export default function Dashboard() {
       const parsedData = JSON.parse(jsonInput);
       const formulasToInsert = Array.isArray(parsedData) ? parsedData : [parsedData];
 
-      // Mapping: Akzeptiert math/desc ODER formula/context
       const finalData = formulasToInsert.map(f => ({
         name: f.name || "Unbenannte Formel",
         formula: f.formula || f.math || "", 
         context: f.context || f.desc || f.category || "", 
         source: f.source || "NotebookLM",
+        is_favorite: false,
         user_id: user?.id
       }));
 
       const { error } = await supabase.from('formulas').insert(finalData);
       if (error) throw error;
 
-      // XP BONUS
       const totalXpBonus = finalData.length * 10;
       await supabase.rpc('increment_xp', { x: totalXpBonus, row_id: user?.id });
 
@@ -71,7 +71,11 @@ export default function Dashboard() {
       setIsApproved(profile.is_approved);
       if (profile.is_approved) {
         const currentXP = profile.xp || 0;
-        setXpData({ xp: currentXP, level: Math.floor(currentXP / 100) + 1, progress: currentXP % 100 });
+        setXpData({ 
+          xp: currentXP, 
+          level: Math.floor(currentXP / 100) + 1, 
+          progress: currentXP % 100 
+        });
         fetchStats();
         fetchFormulas();
       }
@@ -82,16 +86,17 @@ export default function Dashboard() {
   };
 
   const fetchFormulas = async () => {
-    const { data } = await supabase.from('formulas').select('*').eq('user_id', user?.id).order('created_at', { ascending: false });
-    if (data) setFormulas(data);
-  };
-
-  const handleDeleteFormula = async (id: string) => {
-    setFormulas(prev => prev.filter(f => f.id !== id));
-    const { error } = await supabase.from('formulas').delete().eq('id', id);
-    if (error) {
-      alert("Löschen fehlgeschlagen!");
-      fetchFormulas();
+    const { data } = await supabase
+      .from('formulas')
+      .select('*')
+      .eq('user_id', user?.id)
+      .order('created_at', { ascending: false });
+    
+    if (data) {
+      setFormulas(data);
+      // Extrahiere den ersten Favoriten für den Teaser
+      const firstFav = data.find(f => f.is_favorite);
+      setFavPreview(firstFav ? firstFav.name : null);
     }
   };
 
@@ -103,7 +108,11 @@ export default function Dashboard() {
     setStats({ decks: d || 0, cards: c || 0, notes: n || 0 });
   };
 
-  if (loading) return <div className="min-h-screen bg-canvas flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary"></div></div>;
+  if (loading) return (
+    <div className="min-h-screen bg-canvas flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary"></div>
+    </div>
+  );
 
   if (isApproved === false) return (
     <div className="min-h-screen bg-canvas flex items-center justify-center p-6 text-center">
@@ -121,13 +130,18 @@ export default function Dashboard() {
         <header className="mb-8 bg-panel p-6 rounded-2xl shadow-sm border border-gray-100/10">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-ink">Hallo, <span className="text-primary">{fullName || user?.email?.split('@')[0]}</span>!</h1>
+              <h1 className="text-2xl md:text-3xl font-extrabold text-ink">
+                Hallo, <span className="text-primary">{fullName || user?.email?.split('@')[0]}</span>!
+              </h1>
               <p className="text-gray-500 mt-1 text-sm">Level {xpData.level} • {xpData.xp} XP Gesamt</p>
             </div>
             <div className="text-left md:text-right w-full md:w-auto">
               <span className="text-sm font-bold text-primary">{xpData.progress} / 100 XP</span>
               <div className="w-full md:w-48 bg-gray-200/50 rounded-full h-2 mt-1">
-                <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-1000" style={{ width: `${xpData.progress}%` }}></div>
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-1000" 
+                  style={{ width: `${xpData.progress}%` }}
+                ></div>
               </div>
             </div>
           </div>
@@ -136,21 +150,50 @@ export default function Dashboard() {
         <QuotePlayer />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
-          <Link href="/flashcards"><div className="bg-panel p-6 rounded-2xl border border-gray-100/10 hover:shadow-lg transition cursor-pointer"><p className="text-gray-500 font-medium">Lern-Decks</p><h2 className="text-4xl font-bold text-ink">{stats.decks}</h2></div></Link>
-          <Link href="/flashcards"><div className="bg-panel p-6 rounded-2xl border border-gray-100/10 hover:shadow-lg transition cursor-pointer"><p className="text-gray-500 font-medium">Karten</p><h2 className="text-4xl font-bold text-ink">{stats.cards}</h2></div></Link>
-          <Link href="/notes"><div className="bg-panel p-6 rounded-2xl border border-gray-100/10 hover:shadow-lg transition cursor-pointer"><p className="text-gray-500 font-medium">Notizen</p><h2 className="text-4xl font-bold text-ink">{stats.notes}</h2></div></Link>
+          <Link href="/flashcards">
+            <div className="bg-panel p-6 rounded-2xl border border-gray-100/10 hover:shadow-lg transition cursor-pointer">
+              <p className="text-gray-500 font-medium">Lern-Decks</p>
+              <h2 className="text-4xl font-bold text-ink">{stats.decks}</h2>
+            </div>
+          </Link>
+          <Link href="/flashcards">
+            <div className="bg-panel p-6 rounded-2xl border border-gray-100/10 hover:shadow-lg transition cursor-pointer">
+              <p className="text-gray-500 font-medium">Karten</p>
+              <h2 className="text-4xl font-bold text-ink">{stats.cards}</h2>
+            </div>
+          </Link>
+          <Link href="/notes">
+            <div className="bg-panel p-6 rounded-2xl border border-gray-100/10 hover:shadow-lg transition cursor-pointer">
+              <p className="text-gray-500 font-medium">Notizen</p>
+              <h2 className="text-4xl font-bold text-ink">{stats.notes}</h2>
+            </div>
+          </Link>
         </div>
 
+        {/* NEUER KOMPAKTER FORMEL-TEASER MIT FAVORITEN-VORSCHAU */}
         <section className="mb-12">
-          <h2 className="text-xl font-bold text-ink mb-6">Physik Fokus: Formelsammlung</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <AnimatePresence mode="popLayout">
-              {formulas.map((f) => (
-                <FormulaCard key={f.id} id={f.id} name={f.name} formula={f.formula} context={f.context} source={f.source} onDelete={handleDeleteFormula} />
-              ))}
-            </AnimatePresence>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-ink">Physik-Zentrale</h2>
+            <Link href="/formulas" className="text-sm text-primary font-bold hover:underline">Alle anzeigen →</Link>
           </div>
-          {formulas.length === 0 && <div className="text-center p-8 border-2 border-dashed border-gray-100/10 rounded-2xl text-gray-500">Keine Formeln aktiv.</div>}
+          <Link href="/formulas">
+            <div className="bg-gradient-to-br from-blue-500/10 to-purple-600/10 p-6 rounded-3xl border border-primary/20 flex items-center justify-between group active:scale-[0.98] transition-all">
+              <div className="flex items-center gap-4">
+                <div className="text-3xl">⚛️</div>
+                <div>
+                  <p className="text-ink font-bold">Formelsammlung</p>
+                  <p className="text-gray-500 text-xs">
+                    {favPreview 
+                      ? `⭐ Favorit: ${favPreview}` 
+                      : `${formulas.length} Formeln griffbereit`}
+                  </p>
+                </div>
+              </div>
+              <div className="bg-primary text-white p-2 rounded-xl group-hover:translate-x-1 transition-transform">
+                →
+              </div>
+            </div>
+          </Link>
         </section>
 
         <section className="mt-12 p-6 bg-panel rounded-3xl border border-dashed border-primary/20">
@@ -164,7 +207,7 @@ export default function Dashboard() {
           <button
             onClick={handleBulkImport}
             disabled={importing || !jsonInput}
-            className="mt-4 w-full bg-primary hover:bg-primary/90 text-white py-4 rounded-2xl font-bold transition-all disabled:opacity-50"
+            className="mt-4 w-full bg-primary hover:bg-primary/90 text-white py-4 rounded-2xl font-bold transition-all disabled:opacity-50 active:scale-95"
           >
             {importing ? 'Lädt...' : 'Daten einspeisen & XP sammeln'}
           </button>

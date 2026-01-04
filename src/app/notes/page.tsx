@@ -8,11 +8,10 @@ import Editor from '../../components/Editor';
 type Note = {
   id: number;
   content: string;
-  category: string; // 👈 NEU: Kategorie
+  category: string;
   created_at: string;
 };
 
-// Die PARA Kategorien
 const CATEGORIES = [
   { id: 'inbox', label: '📥 Inbox', color: 'bg-gray-100 text-gray-800' },
   { id: 'projects', label: '🚀 Projekte', color: 'bg-blue-100 text-blue-800' },
@@ -24,19 +23,15 @@ const CATEGORIES = [
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Editor State
   const [newContent, setNewContent] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('inbox'); // 👈 NEU
-  
-  // Search State
-  const [searchTerm, setSearchTerm] = useState(''); // 👈 NEU
+  const [selectedCategory, setSelectedCategory] = useState('inbox');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const { user } = useAuth();
 
   useEffect(() => {
-    fetchNotes();
-  }, []);
+    if (user) fetchNotes();
+  }, [user]);
 
   const fetchNotes = async () => {
     const { data, error } = await supabase
@@ -58,14 +53,14 @@ export default function NotesPage() {
       .insert([{ 
         content: newContent, 
         user_id: user.id,
-        category: selectedCategory // 👈 Hier speichern wir die Kategorie
+        category: selectedCategory 
       }]);
 
     if (error) {
       alert('Fehler: ' + error.message);
     } else {
       setNewContent('');
-      setSelectedCategory('inbox'); // Reset auf Inbox
+      setSelectedCategory('inbox');
       fetchNotes();
     }
   };
@@ -73,34 +68,37 @@ export default function NotesPage() {
   const deleteNote = async (id: number) => {
     if (!confirm('Notiz wirklich löschen?')) return;
     const { error } = await supabase.from('notes').delete().eq('id', id);
-    if (!error) setNotes(notes.filter(n => n.id !== id));
+    if (!error) {
+      setNotes(prev => prev.filter(n => n.id !== id));
+    } else {
+      alert("Löschen fehlgeschlagen: " + error.message);
+    }
   };
 
-  // 🔍 FILTER LOGIK
   const filteredNotes = notes.filter(note => 
     note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
     note.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="p-8 max-w-5xl mx-auto min-h-screen">
-      <h1 className="text-3xl font-bold mb-8 text-gray-800">Mein Second Brain 🧠</h1>
+    <div className="p-4 md:p-8 max-w-5xl mx-auto min-h-screen pb-32">
+      <h1 className="text-3xl font-extrabold mb-8 text-ink">Mein Second Brain 🧠</h1>
 
       {/* --- EDITOR BEREICH --- */}
-      <div className="mb-12 bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-        <label className="block text-sm font-bold text-gray-700 mb-3">Neue Notiz erfassen</label>
+      <div className="mb-12 bg-panel p-6 rounded-3xl shadow-sm border border-gray-100/10">
+        <label className="block text-sm font-bold text-gray-500 mb-3 uppercase tracking-wider">Gedanken festhalten</label>
         
-        <Editor content={newContent} onChange={(html) => setNewContent(html)} />
+        <div className="bg-canvas rounded-2xl overflow-hidden border border-gray-100/10">
+          <Editor content={newContent} onChange={(html) => setNewContent(html)} />
+        </div>
         
-        <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-          
-          {/* Kategorie Auswahl */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <span className="text-sm text-gray-500">Kategorie:</span>
+        <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-3 w-full sm:w-auto bg-canvas p-2 rounded-xl border border-gray-100/10">
+            <span className="text-xs font-bold text-gray-400 ml-2">PARA:</span>
             <select 
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="p-2 border rounded-lg bg-gray-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              className="bg-transparent text-ink text-sm outline-none cursor-pointer"
             >
               {CATEGORIES.map(cat => (
                 <option key={cat.id} value={cat.id}>{cat.label}</option>
@@ -110,71 +108,74 @@ export default function NotesPage() {
 
           <button 
             onClick={addNote}
-            className="w-full sm:w-auto bg-blue-600 text-white px-8 py-2 rounded-lg hover:bg-blue-700 font-bold shadow-md transition"
+            className="w-full sm:w-auto bg-primary text-white px-10 py-3 rounded-2xl hover:opacity-90 font-bold shadow-lg shadow-primary/20 transition active:scale-95"
           >
             Speichern
           </button>
         </div>
       </div>
       
-      {/* --- SUCHE & LISTE --- */}
-      <div className="space-y-6">
-        
-        {/* Suchleiste */}
-        <div className="relative">
-          <input 
-            type="text"
-            placeholder="🔍 Notizen durchsuchen..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full p-4 pl-12 rounded-xl border border-gray-200 shadow-sm focus:ring-2 focus:ring-blue-500 outline-none text-lg"
-          />
-          <span className="absolute left-4 top-4 text-gray-400 text-xl">🔎</span>
-        </div>
+      {/* --- SUCHE --- */}
+      <div className="relative mb-8">
+        <input 
+          type="text"
+          placeholder="Notizen durchsuchen..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full p-4 pl-12 rounded-2xl bg-panel border border-gray-100/10 shadow-sm focus:ring-2 focus:ring-primary outline-none text-ink"
+        />
+        <span className="absolute left-4 top-4 opacity-50">🔍</span>
+      </div>
 
-        {loading ? (
-          <p className="text-center text-gray-400">Lade Gedanken...</p>
-        ) : filteredNotes.length === 0 ? (
-          <div className="text-center p-10 border-2 border-dashed rounded-xl bg-gray-50 text-gray-500">
-            {searchTerm ? 'Nichts gefunden. 🤷‍♂️' : 'Dein Gehirn ist leer. Schreib was auf! 👆'}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {filteredNotes.map((note) => {
-              // Finde die passenden Farben für die Kategorie
-              const catInfo = CATEGORIES.find(c => c.id === note.category) || CATEGORIES[0];
+      {/* --- LISTE --- */}
+      {loading ? (
+        <p className="text-center text-gray-500">Lade Gedanken...</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          {filteredNotes.map((note) => {
+            const catInfo = CATEGORIES.find(c => c.id === note.category) || CATEGORIES[0];
 
-              return (
-                <div key={note.id} className="relative group bg-white border border-gray-200 p-6 rounded-xl shadow-sm hover:shadow-md transition">
+            return (
+              <div key={note.id} className="group bg-panel border border-gray-100/10 p-6 rounded-3xl shadow-sm hover:border-primary/30 transition-all relative">
+                
+                {/* Header mit Kategorie & Lösch-Button */}
+                <div className="flex justify-between items-start mb-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${catInfo.color}`}>
+                    {catInfo.label}
+                  </span>
                   
-                  <div className="flex justify-between items-start mb-3">
-                    {/* Kategorie Badge */}
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wide ${catInfo.color}`}>
-                      {catInfo.label}
-                    </span>
-                    
-                    <button
-                      onClick={() => deleteNote(note.id)}
-                      className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      🗑️
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => deleteNote(note.id)}
+                    className="p-2 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-90"
+                    title="Löschen"
+                  >
+                    <span className="text-lg">🗑️</span>
+                  </button>
+                </div>
 
-                  <div 
-                    className="prose prose-sm max-w-none text-gray-800"
-                    dangerouslySetInnerHTML={{ __html: note.content }} 
-                  />
-                  
-                  <small className="text-gray-400 block mt-4 text-xs border-t pt-2">
-                    {new Date(note.created_at).toLocaleString('de-DE')}
+                {/* Content */}
+                <div 
+                  className="prose prose-invert prose-sm max-w-none text-ink"
+                  dangerouslySetInnerHTML={{ __html: note.content }} 
+                />
+                
+                <div className="mt-6 pt-4 border-t border-gray-100/5 flex justify-between items-center">
+                  <small className="text-gray-500 text-[10px] uppercase font-bold tracking-widest">
+                    {new Date(note.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </small>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Leerstadium */}
+      {!loading && filteredNotes.length === 0 && (
+        <div className="text-center py-20 bg-panel rounded-3xl border border-dashed border-gray-100/20">
+          <p className="text-gray-500 font-medium">Keine Einträge gefunden. 💭</p>
+        </div>
+      )}
     </div>
   );
 }
