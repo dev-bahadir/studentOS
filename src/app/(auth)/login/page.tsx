@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/supabaseClient'; // Das @ funktioniert jetzt hoffentlich, sonst ../../../supabaseClient
+import { supabase } from '@/supabaseClient'; 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -26,22 +26,21 @@ export default function LoginPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      // Erfolgreich eingeloggt -> Weiter zum Dashboard
       router.push('/dashboard');
       router.refresh();
     }
   };
 
-const handleResetPassword = async () => {
-  const email = prompt("Bitte gib deine E-Mail-Adresse ein:");
-  if (email) {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://deine-url.vercel.app/reset-password',
-    });
-    if (error) alert("Fehler: " + error.message);
-    else alert("Check deine E-Mails! Der Link zum Zurücksetzen wurde gesendet.");
-  }
-};
+  const handleResetPassword = async () => {
+    const emailInput = prompt("Bitte gib deine E-Mail-Adresse ein:");
+    if (emailInput) {
+      const { error } = await supabase.auth.resetPasswordForEmail(emailInput, {
+        redirectTo: 'https://student-os.vercel.app/reset-password',
+      });
+      if (error) alert("Fehler: " + error.message);
+      else alert("Check deine E-Mails! Der Link zum Zurücksetzen wurde gesendet.");
+    }
+  };
 
   const handleSignUp = async () => {
     setLoading(true);
@@ -89,13 +88,6 @@ const handleResetPassword = async () => {
             />
           </div>
 
-          <button 
-  onClick={handleResetPassword}
-  className="text-sm text-blue-400 hover:underline mt-2"
->
-  Passwort vergessen?
-</button>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
             <input
@@ -117,15 +109,27 @@ const handleResetPassword = async () => {
           </button>
         </form>
 
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-500">Noch keinen Account?</p>
-          <button 
-            onClick={handleSignUp}
-            type="button"
-            className="text-blue-600 font-bold hover:underline text-sm mt-1"
-          >
-            Jetzt registrieren
-          </button>
+        <div className="mt-6 text-center space-y-4">
+          <div>
+            <p className="text-sm text-gray-500">Noch keinen Account?</p>
+            <button 
+              onClick={handleSignUp}
+              type="button"
+              className="text-blue-600 font-bold hover:underline text-sm mt-1"
+            >
+              Jetzt registrieren
+            </button>
+          </div>
+          
+          <div className="pt-4 border-t border-gray-100">
+            <button 
+              type="button"
+              onClick={handleResetPassword}
+              className="text-xs text-gray-400 hover:text-blue-600 transition underline"
+            >
+              Passwort vergessen?
+            </button>
+          </div>
         </div>
       </div>
     </div>
