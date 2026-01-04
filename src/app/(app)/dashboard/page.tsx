@@ -5,17 +5,18 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // 👇 Importe
-import { supabase } from '../../supabaseClient'; 
-import { useAuth } from '../../components/providers/AuthProvider';
-import QuotePlayer from '../../components/QuotePlayer';
-import { useTheme } from '../../components/providers/ThemeProvider';
+import { supabase } from '../../../supabaseClient'; 
+import { useAuth } from '../../../components/providers/AuthProvider';
+import QuotePlayer from '../../../components/QuotePlayer';
+import { useTheme } from '../../../components/providers/ThemeProvider';
+import { Sidebar } from '@/components/layout/Sidebar'; // Falls nötig, aber Sidebar ist im Layout
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { fullName } = useTheme();
   
   const [stats, setStats] = useState({ decks: 0, cards: 0, notes: 0 });
-  const [xpData, setXpData] = useState({ xp: 0, level: 1, progress: 0 });
+  const [xpData, setXpData] = useState({ xp: 0, level: 1, progress: 0, nextLevelXp: 500 }); // 👈 NEU: nextLevelXp
   const [isApproved, setIsApproved] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +36,7 @@ export default function Dashboard() {
       const finalData = formulasToInsert.map(f => ({
         name: f.name || "Unbenannte Formel",
         formula: f.formula || f.math || "", 
-        context: f.context || f.desc || f.category || "", 
+        context: f.context || f.desc || (f.category ? `${f.category}: Keine Beschreibung` : "Allgemein: Keine Beschreibung"), 
         source: f.source || "NotebookLM",
         is_favorite: false,
         user_id: user?.id
@@ -44,7 +45,13 @@ export default function Dashboard() {
       const { error } = await supabase.from('formulas').insert(finalData);
       if (error) throw error;
 
-      const totalXpBonus = finalData.length * 10;
+      // --- BALANCING UPDATE ---
+      // Vorher: 10 XP pro Formel (Viel zu viel!)
+      // Neu: 2 XP pro Formel, aber MAXIMAL 50 XP pro Import-Vorgang (Spamschutz)
+      const xpPerItem = 2;
+      const calculatedXp = finalData.length * xpPerItem;
+      const totalXpBonus = Math.min(calculatedXp, 50); 
+
       await supabase.rpc('increment_xp', { x: totalXpBonus, row_id: user?.id });
 
       alert(`Erfolg! ${finalData.length} Formeln geladen & +${totalXpBonus} XP!`);
@@ -71,11 +78,21 @@ export default function Dashboard() {
       setIsApproved(profile.is_approved);
       if (profile.is_approved) {
         const currentXP = profile.xp || 0;
+        
+        // --- BALANCING UPDATE ---
+        // Level-System: Alle 500 XP ein Level (statt 100)
+        const LEVEL_THRESHOLD = 500;
+        const level = Math.floor(currentXP / LEVEL_THRESHOLD) + 1;
+        const progressXP = currentXP % LEVEL_THRESHOLD;
+        const progressPercent = (progressXP / LEVEL_THRESHOLD) * 100;
+
         setXpData({ 
           xp: currentXP, 
-          level: Math.floor(currentXP / 100) + 1, 
-          progress: currentXP % 100 
+          level: level, 
+          progress: Math.floor(progressPercent),
+          nextLevelXp: LEVEL_THRESHOLD
         });
+        
         fetchStats();
         fetchFormulas();
       }
@@ -94,7 +111,6 @@ export default function Dashboard() {
     
     if (data) {
       setFormulas(data);
-      // Extrahiere den ersten Favoriten für den Teaser
       const firstFav = data.find(f => f.is_favorite);
       setFavPreview(firstFav ? firstFav.name : null);
     }
@@ -127,6 +143,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-canvas p-4 md:p-8 transition-colors duration-500 pb-32">
       <div className="max-w-5xl mx-auto">
         
+        {/* HEADER */}
         <header className="mb-8 bg-panel p-6 rounded-2xl shadow-sm border border-gray-100/10">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-4">
             <div>
@@ -136,7 +153,10 @@ export default function Dashboard() {
               <p className="text-gray-500 mt-1 text-sm">Level {xpData.level} • {xpData.xp} XP Gesamt</p>
             </div>
             <div className="text-left md:text-right w-full md:w-auto">
-              <span className="text-sm font-bold text-primary">{xpData.progress} / 100 XP</span>
+              {/* Anzeige angepasst für 500er Schritte */}
+              <span className="text-sm font-bold text-primary">
+                 {xpData.xp % xpData.nextLevelXp} / {xpData.nextLevelXp} XP zum Aufstieg
+              </span>
               <div className="w-full md:w-48 bg-gray-200/50 rounded-full h-2 mt-1">
                 <div 
                   className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-1000" 
@@ -147,8 +167,22 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <QuotePlayer />
+        {/* SPLIT GRID FÜR QUOTE & BILD-PLAYER */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-panel rounded-2xl border border-gray-100/10 overflow-hidden">
+            <QuotePlayer />
+          </div>
+          
+          <div className="bg-gradient-to-br from-indigo-500/10 to-purple-600/10 rounded-2xl border border-primary/20 p-6 flex items-center justify-center text-center">
+            <div>
+               <span className="text-4xl mb-2 block">🖼️</span>
+               <p className="text-gray-500 text-sm font-bold">Bild-Player</p>
+               <p className="text-xs text-gray-400">Kommt bald...</p>
+            </div>
+          </div>
+        </div>
 
+        {/* STATS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
           <Link href="/flashcards">
             <div className="bg-panel p-6 rounded-2xl border border-gray-100/10 hover:shadow-lg transition cursor-pointer">
@@ -170,10 +204,10 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {/* NEUER KOMPAKTER FORMEL-TEASER MIT FAVORITEN-VORSCHAU */}
+        {/* WISSENS-TRESOR TEASER */}
         <section className="mb-12">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-ink">Physik-Zentrale</h2>
+            <h2 className="text-xl font-bold text-ink">Wissens-Tresor</h2>
             <Link href="/formulas" className="text-sm text-primary font-bold hover:underline">Alle anzeigen →</Link>
           </div>
           <Link href="/formulas">
@@ -181,11 +215,11 @@ export default function Dashboard() {
               <div className="flex items-center gap-4">
                 <div className="text-3xl">⚛️</div>
                 <div>
-                  <p className="text-ink font-bold">Formelsammlung</p>
+                  <p className="text-ink font-bold">Formeln & Wissen</p>
                   <p className="text-gray-500 text-xs">
                     {favPreview 
                       ? `⭐ Favorit: ${favPreview}` 
-                      : `${formulas.length} Formeln griffbereit`}
+                      : `${formulas.length} Einträge griffbereit`}
                   </p>
                 </div>
               </div>
@@ -196,6 +230,7 @@ export default function Dashboard() {
           </Link>
         </section>
 
+        {/* IMPORT */}
         <section className="mt-12 p-6 bg-panel rounded-3xl border border-dashed border-primary/20">
           <h2 className="text-lg font-bold text-ink mb-4 flex items-center gap-2"><span>🚀</span> NotebookLM Bulk-Import</h2>
           <textarea

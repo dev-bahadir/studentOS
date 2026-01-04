@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../../supabaseClient';
-import { useAuth } from '../../components/providers/AuthProvider';
+import { supabase } from '../../../supabaseClient';
+import { useAuth } from '../../../components/providers/AuthProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function FormulasPage() {
@@ -42,7 +42,8 @@ export default function FormulasPage() {
       const finalData = list.map(f => ({
         name: f.name || "Unbenannte Formel",
         formula: f.formula || f.math || "",
-        context: f.context || f.desc || (f.category ? `${f.category}: Keine Beschreibung` : ""),
+        // Hier ist der Fix für die Kategorien: Wenn 'category' existiert, nutze es als Präfix
+        context: f.context || f.desc || (f.category ? `${f.category}: Keine Beschreibung` : "Allgemein: Keine Beschreibung"),
         source: f.source || "Import",
         is_favorite: false,
         user_id: user?.id
@@ -87,14 +88,19 @@ export default function FormulasPage() {
   };
 
   // --- FILTER & SORTIERUNG ---
-  const categories = ['Alle', ...Array.from(new Set(formulas.map(f => f.context?.split(':')[0] || 'Allgemein')))];
+  // Extrahiert alles vor dem Doppelpunkt als Kategorie
+  const categories = ['Alle', ...Array.from(new Set(formulas.map(f => {
+    const ctx = f.context || '';
+    return ctx.includes(':') ? ctx.split(':')[0].trim() : 'Allgemein';
+  })))];
 
   const filteredFormulas = formulas
     .filter(f => {
       const matchesSearch = f.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                             f.context?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const categoryName = f.context?.split(':')[0] || 'Allgemein';
+      const ctx = f.context || '';
+      const categoryName = ctx.includes(':') ? ctx.split(':')[0].trim() : 'Allgemein';
       const matchesCategory = activeCategory === 'Alle' || categoryName === activeCategory;
 
       return matchesSearch && matchesCategory;
@@ -107,7 +113,7 @@ export default function FormulasPage() {
       {/* HEADER */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-black text-ink">Formel-Tresor 🔐</h1>
+          <h1 className="text-3xl font-black text-ink">Wissens-Tresor 🔐</h1>
           <p className="text-gray-500 text-sm mt-1">{formulas.length} wissenschaftliche Einträge</p>
         </div>
         <button 
@@ -118,7 +124,7 @@ export default function FormulasPage() {
         </button>
       </div>
 
-      {/* IMPORT PANEL (Auszug, bleibt wie bei dir) */}
+      {/* IMPORT PANEL */}
       <AnimatePresence>
         {isImporting && (
           <motion.div 
@@ -213,7 +219,7 @@ export default function FormulasPage() {
                 >
                   <div>
                     <span className="text-[10px] font-bold text-primary uppercase tracking-tighter mb-1 block">
-                      {f.context?.split(':')[0] || 'Allgemein'}
+                      {f.context && f.context.includes(':') ? f.context.split(':')[0] : 'Allgemein'}
                     </span>
                     <h3 className="font-bold text-ink text-lg">{f.name}</h3>
                     <code className="text-primary/80 text-sm font-mono mt-2 block">{f.formula}</code>
@@ -240,7 +246,7 @@ export default function FormulasPage() {
                       <div className="space-y-2">
                         <h4 className="text-[10px] font-bold text-gray-500 uppercase">Kontext & Parameter</h4>
                         <p className="text-gray-400 text-sm leading-relaxed">
-                          {f.context?.includes(':') ? f.context.split(':').slice(1).join(':').trim() : f.context}
+                          {f.context && f.context.includes(':') ? f.context.split(':').slice(1).join(':').trim() : f.context}
                         </p>
                       </div>
 

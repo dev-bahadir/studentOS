@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../../supabaseClient';
+import { supabase } from '../../../supabaseClient';
 import { useAuth } from '@/components/providers/AuthProvider';
 
 type Task = {
@@ -131,7 +131,7 @@ export default function TaskBoard() {
                 
                 <button 
                   onClick={() => deleteTask(task.id)} 
-                  className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+                  className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-gray-900/20 rounded-xl transition-colors"
                 >
                   <span className="text-xl">🗑️</span>
                 </button>

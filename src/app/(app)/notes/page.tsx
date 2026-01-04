@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../supabaseClient'; 
+import { supabase } from '../../../supabaseClient'; 
 import { useAuth } from '@/components/providers/AuthProvider';
-import Editor from '../../components/Editor';
+import Editor from '../../../components/Editor';
 
 type Note = {
   id: number;
