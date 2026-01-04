@@ -11,3 +11,5 @@ if (!supabaseUrl || !supabaseKey) {
 
 // Hier exportieren wir den fertigen Client
 export const supabase = createClient(supabaseUrl, supabaseKey)
+
+export { createClient }
