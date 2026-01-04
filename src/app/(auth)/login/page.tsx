@@ -32,6 +32,17 @@ export default function LoginPage() {
     }
   };
 
+const handleResetPassword = async () => {
+  const email = prompt("Bitte gib deine E-Mail-Adresse ein:");
+  if (email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://deine-url.vercel.app/reset-password',
+    });
+    if (error) alert("Fehler: " + error.message);
+    else alert("Check deine E-Mails! Der Link zum Zurücksetzen wurde gesendet.");
+  }
+};
+
   const handleSignUp = async () => {
     setLoading(true);
     setError(null);
@@ -77,6 +88,13 @@ export default function LoginPage() {
               placeholder="deine@email.com"
             />
           </div>
+
+          <button 
+  onClick={handleResetPassword}
+  className="text-sm text-blue-400 hover:underline mt-2"
+>
+  Passwort vergessen?
+</button>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
