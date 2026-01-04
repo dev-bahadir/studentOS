@@ -87,7 +87,7 @@ export default function Dashboard() {
           <div className="text-6xl mb-6">⏳</div>
           <h2 className="text-3xl font-bold text-ink mb-4">Warteliste</h2>
           <p className="text-gray-500 mb-8 leading-relaxed">
-            Selam! Dein Account wurde erfolgreich erstellt. Um die Serverkapazität zu schonen, schalten wir Nutzer aktuell manuell frei.
+            Hallo! Dein Account wurde erfolgreich erstellt. Um die Serverkapazität zu schonen, schalten wir Nutzer aktuell manuell frei.
           </p>
           <div className="inline-block px-6 py-2 bg-primary/10 text-primary rounded-full text-sm font-bold animate-pulse">
             Admin-Prüfung ausstehend...
@@ -110,7 +110,7 @@ export default function Dashboard() {
           <div className="flex justify-between items-end mb-4">
             <div>
              <h1 className="text-3xl font-extrabold text-ink">
-                  Selamünaleyküm, <span className="text-primary">{fullName || user?.email?.split('@')[0]}</span>!
+                  Hallo, <span className="text-primary">{fullName || user?.email?.split('@')[0]}</span>!
              </h1>
              <p className="text-gray-500 mt-1">Level {xpData.level} • {xpData.xp} XP Gesamt</p>
             </div>

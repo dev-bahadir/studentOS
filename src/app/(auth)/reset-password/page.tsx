@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/supabaseClient';
+// Passe den Pfad hier an, falls nötig (../../supabaseClient)
+import { supabase } from '@/supabaseClient'; 
 import { useRouter } from 'next/navigation';
 
 export default function ResetPasswordPage() {
@@ -32,10 +33,12 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+    // bg-canvas statt bg-gray-50 für dein dunkles Design
+    <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
+      {/* bg-panel statt bg-white */}
+      <div className="max-w-md w-full bg-panel rounded-2xl shadow-xl p-8 border border-gray-100/10">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+          <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600">
             Neues Passwort
           </h1>
           <p className="text-gray-500 mt-2">Wähle ein sicheres Passwort für dein ElectroBrain OS</p>
@@ -43,7 +46,7 @@ export default function ResetPasswordPage() {
 
         {message && (
           <div className={`p-3 rounded-lg mb-4 text-sm font-medium border ${
-            message.type === 'success' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-600 border-red-100'
+            message.type === 'success' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'
           }`}>
             {message.text}
           </div>
@@ -51,7 +54,7 @@ export default function ResetPasswordPage() {
 
         <form onSubmit={handleUpdatePassword} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Neues Passwort</label>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Neues Passwort</label>
             <input
               type="password"
               placeholder="••••••••"
@@ -59,14 +62,15 @@ export default function ResetPasswordPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+              // bg-canvas für das Input-Feld
+              className="w-full p-3 bg-canvas border border-gray-100/10 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition text-ink"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-500/30 disabled:opacity-50"
+            className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary/90 transition shadow-lg shadow-primary/30 disabled:opacity-50"
           >
             {loading ? 'Wird gespeichert...' : 'Passwort jetzt ändern'}
           </button>
@@ -75,7 +79,7 @@ export default function ResetPasswordPage() {
         <div className="mt-6 text-center">
           <button 
             onClick={() => router.push('/login')}
-            className="text-xs text-gray-400 hover:text-blue-600 transition underline"
+            className="text-xs text-gray-400 hover:text-primary transition underline"
           >
             Zurück zum Login
           </button>
