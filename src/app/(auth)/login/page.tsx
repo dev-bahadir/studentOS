@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { supabase } from '@/supabaseClient'; 
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,6 +10,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Neue States für den Passwort-Reset innerhalb der Seite
+  const [showResetField, setShowResetField] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,27 +31,31 @@ export default function LoginPage() {
       setLoading(false);
     } else {
       window.location.href = '/dashboard';
-      router.refresh();
     }
   };
 
-const handleResetPassword = async () => {
-  const emailInput = prompt("Bitte gib deine E-Mail-Adresse ein:");
-  if (emailInput) {
-    // Wir nutzen hier die aktuelle URL dynamisch, damit es überall klappt
-    const siteUrl = window.location.origin; 
+  const handleResetPassword = async () => {
+    if (!resetEmail) {
+      setResetMessage("Bitte gib zuerst deine E-Mail ein.");
+      return;
+    }
     
-    const { error } = await supabase.auth.resetPasswordForEmail(emailInput, {
-      redirectTo: `${siteUrl}/reset-password`,
+    setLoading(true);
+    setResetMessage(null);
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
     });
     
     if (error) {
-      alert("Fehler: " + error.message);
+      setResetMessage("Fehler: " + error.message);
     } else {
-      alert("Check deine E-Mails! Der Link führt dich direkt zum neuen Passwort-Formular.");
+      setResetMessage("Check deine E-Mails! Der Link ist unterwegs.");
+      setTimeout(() => setShowResetField(false), 3000);
     }
-  }
-};
+    setLoading(false);
+  };
+
   const handleSignUp = async () => {
     setLoading(true);
     setError(null);
@@ -72,7 +80,7 @@ const handleResetPassword = async () => {
           <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
             ElectroBrain OS
           </h1>
-          <p className="text-gray-500 mt-2">Bitte melde dich an</p>
+          <p className="text-gray-500 mt-2">Willkommen zurück</p>
         </div>
 
         {error && (
@@ -115,7 +123,44 @@ const handleResetPassword = async () => {
           </button>
         </form>
 
-        <div className="mt-6 text-center space-y-4">
+        <div className="mt-6 text-center space-y-4 border-t border-gray-100 pt-6">
+          
+          {/* Passwort-Vergessen Bereich ohne Popup */}
+          {!showResetField ? (
+            <button 
+              onClick={() => setShowResetField(true)}
+              className="text-xs text-gray-400 hover:text-blue-600 transition underline"
+            >
+              Passwort vergessen?
+            </button>
+          ) : (
+            <div className="bg-blue-50 p-4 rounded-xl space-y-3">
+              <p className="text-xs text-blue-700 font-bold">Passwort zurücksetzen</p>
+              <input
+                type="email"
+                placeholder="E-Mail für Reset eingeben"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className="w-full p-2 text-sm border border-blue-200 rounded-lg outline-none"
+              />
+              {resetMessage && <p className="text-[10px] text-blue-600 font-medium">{resetMessage}</p>}
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleResetPassword}
+                  className="flex-1 bg-blue-600 text-white text-[10px] py-2 rounded-lg font-bold"
+                >
+                  Link senden
+                </button>
+                <button 
+                  onClick={() => setShowResetField(false)}
+                  className="px-2 text-[10px] text-gray-500"
+                >
+                  Abbrechen
+                </button>
+              </div>
+            </div>
+          )}
+
           <div>
             <p className="text-sm text-gray-500">Noch keinen Account?</p>
             <button 
@@ -124,16 +169,6 @@ const handleResetPassword = async () => {
               className="text-blue-600 font-bold hover:underline text-sm mt-1"
             >
               Jetzt registrieren
-            </button>
-          </div>
-          
-          <div className="pt-4 border-t border-gray-100">
-            <button 
-              type="button"
-              onClick={handleResetPassword}
-              className="text-xs text-gray-400 hover:text-blue-600 transition underline"
-            >
-              Passwort vergessen?
             </button>
           </div>
         </div>
