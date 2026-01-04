@@ -4,18 +4,15 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   const url = request.nextUrl.clone()
 
-  // 1. Wenn irgendetwas zu /auth/signin will -> Zwangsumleitung auf dein neues /login
-  if (url.pathname.includes('/auth/signin')) {
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
+// Ersetze den entsprechenden Teil in deiner middleware.ts
+if (url.pathname.includes('/auth/signin')) {
+  return NextResponse.redirect(new URL('/login', request.url));
+}
 
-  // 2. Erlaube /reset-password explizit
-  if (url.pathname === '/reset-password') {
-    return NextResponse.next()
-  }
-
-  return NextResponse.next()
+// Erlaube /reset-password immer, ohne Check!
+if (url.pathname === '/reset-password') {
+  return NextResponse.next();
+}
 }
 
 export const config = {
