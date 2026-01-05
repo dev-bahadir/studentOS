@@ -1,25 +1,32 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/supabaseClient'; 
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase'; // Nutze den Standard-Client
+import { Loader2, AlertCircle, CheckCircle2, KeyRound, UserPlus, LogIn, Github } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
+  const supabase = createClient();
+
+  // Login States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Neue States für den Passwort-Reset innerhalb der Seite
+  // Reset States
   const [showResetField, setShowResetField] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetMessage, setResetMessage] = useState<string | null>(null);
 
+  // --- 1. LOGIN ---
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -27,16 +34,47 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setError(error.message);
+      setError(error.message === "Invalid login credentials" ? "Falsche E-Mail oder Passwort." : error.message);
       setLoading(false);
     } else {
-      window.location.href = '/dashboard';
+      router.push('/dashboard');
+      router.refresh();
     }
   };
 
+  // --- 2. REGISTRIERUNG (Inline) ---
+  const handleSignUp = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    
+    // Einfache Validierung
+    if(password.length < 6) {
+        setError("Passwort muss mindestens 6 Zeichen haben.");
+        setLoading(false);
+        return;
+    }
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setSuccessMessage('Account erstellt! Bitte bestätige deine E-Mail.');
+    }
+    setLoading(false);
+  };
+
+  // --- 3. PASSWORT RESET (Inline) ---
   const handleResetPassword = async () => {
     if (!resetEmail) {
-      setResetMessage("Bitte gib zuerst deine E-Mail ein.");
+      setResetMessage("Bitte gib oben deine E-Mail ein.");
       return;
     }
     
@@ -50,52 +88,53 @@ export default function LoginPage() {
     if (error) {
       setResetMessage("Fehler: " + error.message);
     } else {
-      setResetMessage("Check deine E-Mails! Der Link ist unterwegs.");
-      setTimeout(() => setShowResetField(false), 3000);
+      setResetMessage("Check deine E-Mails! Link ist raus.");
+      setTimeout(() => setShowResetField(false), 4000);
     }
     setLoading(false);
   };
 
-  const handleSignUp = async () => {
-    setLoading(true);
-    setError(null);
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
+  const handleSocialLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: { redirectTo: `${location.origin}/auth/callback` },
     });
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setError('Registrierung erfolgreich! Bitte check deine E-Mails.');
-    }
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+    <div className="w-full max-w-md mx-auto">
+      <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 transition-colors">
+        
+        {/* HEADER */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-            ElectroBrain OS
-          </h1>
-          <p className="text-gray-500 mt-2">Willkommen zurück</p>
+           <div className="w-12 h-12 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-xl flex items-center justify-center mx-auto mb-4 text-2xl">
+            🧠
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">ElectroBrain OS</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">Willkommen zurück</p>
         </div>
 
+        {/* FEEDBACK BOXEN */}
         {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm font-medium border border-red-100">
-            {error}
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-3 text-red-600 dark:text-red-400 text-sm animate-in fade-in">
+            <AlertCircle size={18} /> {error}
+          </div>
+        )}
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl flex items-center gap-3 text-green-600 dark:text-green-400 text-sm animate-in fade-in">
+            <CheckCircle2 size={18} /> {successMessage}
           </div>
         )}
 
+        {/* LOGIN FORMULAR */}
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email</label>
             <input
               type="email"
               required
-              className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+              suppressHydrationWarning={true}
+              className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none transition text-gray-900 dark:text-white placeholder-gray-400"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="deine@email.com"
@@ -103,11 +142,11 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
             <input
               type="password"
               required
-              className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+              suppressHydrationWarning={true}
+              className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none transition text-gray-900 dark:text-white placeholder-gray-400"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -117,61 +156,74 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-500/30 disabled:opacity-50"
+            className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-cyan-500/20 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70"
           >
-            {loading ? 'Lädt...' : 'Anmelden'}
+            {loading ? <Loader2 className="animate-spin" size={20} /> : <><LogIn size={20}/> Anmelden</>}
           </button>
         </form>
 
-        <div className="mt-6 text-center space-y-4 border-t border-gray-100 pt-6">
+        {/* SOCIAL LOGIN */}
+        <div className="mt-4">
+             <button
+                onClick={handleSocialLogin}
+                type="button"
+                className="flex items-center justify-center gap-2 w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition text-gray-700 dark:text-white font-medium text-sm"
+              >
+                <Github size={18} /> GitHub Login
+             </button>
+        </div>
+
+        {/* FOOTER BEREICH (Reset & Register) */}
+        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700 space-y-4">
           
-          {/* Passwort-Vergessen Bereich ohne Popup */}
+          {/* Passwort Reset Inline */}
           {!showResetField ? (
-            <button 
-              onClick={() => setShowResetField(true)}
-              className="text-xs text-gray-400 hover:text-blue-600 transition underline"
-            >
-              Passwort vergessen?
-            </button>
+            <div className="flex justify-between items-center text-sm">
+                <button 
+                  onClick={() => setShowResetField(true)}
+                  className="text-gray-500 dark:text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400 transition"
+                >
+                  Passwort vergessen?
+                </button>
+                 <button 
+                  onClick={handleSignUp}
+                  type="button"
+                  className="text-cyan-600 dark:text-cyan-400 font-bold hover:underline flex items-center gap-1"
+                >
+                  <UserPlus size={16}/> Registrieren
+                </button>
+            </div>
           ) : (
-            <div className="bg-blue-50 p-4 rounded-xl space-y-3">
-              <p className="text-xs text-blue-700 font-bold">Passwort zurücksetzen</p>
+            <div className="bg-cyan-50 dark:bg-cyan-900/20 p-4 rounded-xl border border-cyan-100 dark:border-cyan-800 animate-in slide-in-from-top-2">
+              <p className="text-xs text-cyan-700 dark:text-cyan-300 font-bold mb-2 flex items-center gap-2">
+                <KeyRound size={14}/> Passwort zurücksetzen
+              </p>
               <input
                 type="email"
                 placeholder="E-Mail für Reset eingeben"
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
-                className="w-full p-2 text-sm border border-blue-200 rounded-lg outline-none"
+                className="w-full p-2 text-sm bg-white dark:bg-gray-900 border border-cyan-200 dark:border-cyan-700 rounded-lg outline-none mb-2 text-gray-900 dark:text-white"
               />
-              {resetMessage && <p className="text-[10px] text-blue-600 font-medium">{resetMessage}</p>}
+              {resetMessage && <p className="text-[11px] text-cyan-600 dark:text-cyan-400 font-medium mb-2">{resetMessage}</p>}
               <div className="flex gap-2">
                 <button 
                   onClick={handleResetPassword}
-                  className="flex-1 bg-blue-600 text-white text-[10px] py-2 rounded-lg font-bold"
+                  className="flex-1 bg-cyan-600 text-white text-xs py-2 rounded-lg font-bold hover:bg-cyan-700 transition"
                 >
                   Link senden
                 </button>
                 <button 
                   onClick={() => setShowResetField(false)}
-                  className="px-2 text-[10px] text-gray-500"
+                  className="px-3 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                 >
                   Abbrechen
                 </button>
               </div>
             </div>
           )}
-
-          <div>
-            <p className="text-sm text-gray-500">Noch keinen Account?</p>
-            <button 
-              onClick={handleSignUp}
-              type="button"
-              className="text-blue-600 font-bold hover:underline text-sm mt-1"
-            >
-              Jetzt registrieren
-            </button>
-          </div>
         </div>
+
       </div>
     </div>
   );

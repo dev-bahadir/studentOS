@@ -118,9 +118,9 @@ export default function SummariesPage() {
       {/* LISTE */}
       <div className="grid grid-cols-1 gap-4">
         {loading ? (
-            <div className="text-center py-20 text-gray-400">Lade Bibliothek...</div>
+            <div className="text-center py-20 text-gray-600 dark:text-gray-400">Lade Bibliothek...</div>
         ) : summaries.length === 0 ? (
-            <div className="text-center py-20 bg-gray-50 rounded-3xl border border-gray-100 text-gray-400">
+            <div className="text-center py-20 bg-gray-50 rounded-3xl border border-gray-100 text-gray-600 dark:text-gray-400">
                 Noch keine Zusammenfassungen. Importiere eine HTML Datei!
             </div>
         ) : (
@@ -136,7 +136,7 @@ export default function SummariesPage() {
                             </div>
                             <div>
                                 <h3 className="font-bold text-gray-800 text-lg">{s.title}</h3>
-                                <p className="text-gray-400 text-xs mt-1">
+                                <p className="text-gray-600 dark:text-gray-400 text-xs mt-1">
                                     Importiert am {new Date(s.created_at).toLocaleDateString()}
                                 </p>
                             </div>

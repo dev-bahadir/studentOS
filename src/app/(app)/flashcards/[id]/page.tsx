@@ -179,7 +179,7 @@ export default function StudySession() {
         </div>
       ) : cards.length > 0 ? (
         <div className="w-full max-w-md flex flex-col flex-1">
-          <p className="text-center text-gray-400 text-xs font-bold uppercase tracking-widest mb-6">
+          <p className="text-center text-gray-600 dark:text-gray-400 text-xs font-bold uppercase tracking-widest mb-6">
             Noch {cards.length} Karten
           </p>
           
@@ -195,7 +195,7 @@ export default function StudySession() {
                  <p className="text-2xl md:text-3xl font-medium text-zinc-800 leading-relaxed">
                     {cards[0].front}
                  </p>
-                 <span className="absolute top-6 left-6 text-xs text-gray-400 uppercase font-extrabold tracking-widest">Frage</span>
+                 <span className="absolute top-6 left-6 text-xs text-gray-600 dark:text-gray-400 uppercase font-extrabold tracking-widest">Frage</span>
                </div>
                
                {/* RÜCKSEITE */}
@@ -231,7 +231,7 @@ export default function StudySession() {
             </div>
           ) : (
              <div className="mt-8 text-center">
-                <p className="text-gray-400 text-sm animate-pulse">Tippe auf die Karte zum Umdrehen</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm animate-pulse">Tippe auf die Karte zum Umdrehen</p>
              </div>
           )}
 
@@ -250,7 +250,7 @@ export default function StudySession() {
         <div className="text-center mt-20 p-8 border-2 border-dashed border-gray-200 rounded-3xl">
           <div className="text-4xl mb-4">📭</div>
           <p className="text-gray-500 font-medium">Dieses Deck ist leer.</p>
-          <p className="text-gray-400 text-sm mt-1">Füge unten neue Karten hinzu.</p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">Füge unten neue Karten hinzu.</p>
         </div>
       )}
 
@@ -265,7 +265,7 @@ export default function StudySession() {
             suppressHydrationWarning 
             value={newFront} 
             onChange={(e) => setNewFront(e.target.value)} 
-            className="w-full p-4 border border-gray-100 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition text-gray-800 placeholder:text-gray-400" 
+            className="w-full p-4 border border-gray-100 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition text-gray-800 placeholder:text-gray-600 dark:text-gray-400" 
             placeholder="Frage eingeben..." 
           />
           <input 
@@ -273,7 +273,7 @@ export default function StudySession() {
             value={newBack} 
             onChange={(e) => setNewBack(e.target.value)} 
             onKeyDown={(e) => e.key === 'Enter' && addCard()} 
-            className="w-full p-4 border border-gray-100 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition text-gray-800 placeholder:text-gray-400" 
+            className="w-full p-4 border border-gray-100 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition text-gray-800 placeholder:text-gray-600 dark:text-gray-400" 
             placeholder="Antwort eingeben..." 
           />
           <button 

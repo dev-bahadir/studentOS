@@ -177,7 +177,7 @@ export default function Dashboard() {
             <div>
                <span className="text-4xl mb-2 block">🖼️</span>
                <p className="text-gray-500 text-sm font-bold">Bild-Player</p>
-               <p className="text-xs text-gray-400">Kommt bald...</p>
+               <p className="text-xs text-gray-600 dark:text-gray-400">Kommt bald...</p>
             </div>
           </div>
         </div>

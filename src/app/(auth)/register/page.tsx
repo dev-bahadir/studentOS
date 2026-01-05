@@ -45,7 +45,7 @@ export default function RegisterPage() {
     <div className="flex items-center justify-center min-h-screen bg-gray-900">
       <div className="w-full max-w-md bg-gray-800 p-8 rounded-lg border border-gray-700">
         <h1 className="text-2xl font-bold text-white mb-2">ElectroBrain OS</h1>
-        <p className="text-gray-400 text-sm mb-6">Create your account</p>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mb-6">Create your account</p>
         
         <form onSubmit={handleRegister} className="space-y-4">
           <input
@@ -76,7 +76,7 @@ export default function RegisterPage() {
           </button>
         </form>
         
-        <p className="text-sm text-gray-400 mt-4">
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-4">
           Already have an account?{' '}
           <Link href="/login" className="text-blue-400 hover:underline">
             Login

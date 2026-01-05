@@ -57,7 +57,7 @@ export default function FormulaCard({ id, name, formula, context, source, onDele
 
         <p className="text-gray-500 text-xs italic">"{context}"</p>
         
-        <div className="md:hidden mt-2 text-[9px] text-gray-400 text-right">
+        <div className="md:hidden mt-2 text-[9px] text-gray-600 dark:text-gray-400 text-right">
           ← wischen zum Löschen
         </div>
       </div>

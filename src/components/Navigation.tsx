@@ -79,10 +79,10 @@ export function Sidebar() {
         
         {/* Header Bereich */}
         <div className="p-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Electro<span className="text-cyan-500">Brain</span>
           </h1>
-          <button onClick={closeSidebar} className="lg:hidden text-gray-400 hover:text-white">
+          <button onClick={closeSidebar} className="lg:hidden text-gray-600 dark:text-gray-400 hover:text-white">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -98,12 +98,12 @@ export function Sidebar() {
                 'flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all text-sm font-medium',
                 pathname === route.href
                   ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-white hover:bg-gray-800/50'
               )}
             >
               <route.icon className={cn(
                 "w-5 h-5",
-                pathname === route.href ? "text-cyan-400" : "text-gray-400"
+                pathname === route.href ? "text-cyan-400" : "text-gray-600 dark:text-gray-400"
               )} />
               {route.label}
             </Link>
@@ -114,7 +114,7 @@ export function Sidebar() {
         <div className="p-3 border-t border-gray-800 bg-gray-900 sticky bottom-0">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-gray-600 dark:text-gray-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
           >
             <LogOut className="w-5 h-5" />
             Logout

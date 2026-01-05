@@ -106,7 +106,7 @@ export default function FocusPage() {
                 key={m}
                 onClick={() => changeMode(m)}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                  mode === m ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'
+                  mode === m ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600 dark:text-gray-400 hover:text-gray-600'
                 }`}
               >
                 {MODES[m].label}
@@ -135,7 +135,7 @@ export default function FocusPage() {
             </button>
           </div>
 
-          <p className="mt-6 text-xs text-gray-400 font-medium">
+          <p className="mt-6 text-xs text-gray-600 dark:text-gray-400 font-medium">
             {mode === 'focus' ? 'Bleib dran! +25 XP bei Abschluss.' : 'Entspann dich. Du hast es dir verdient.'}
           </p>
         </div>

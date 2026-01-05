@@ -135,7 +135,7 @@ export default function FormulasPage() {
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Option A: JSON einfügen</label>
+                <label className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">Option A: JSON einfügen</label>
                 <textarea 
                   value={jsonInput}
                   onChange={(e) => setJsonInput(e.target.value)}
@@ -150,7 +150,7 @@ export default function FormulasPage() {
                 </button>
               </div>
               <div className="flex flex-col justify-center items-center border-2 border-dashed border-gray-100/10 rounded-2xl p-6 bg-canvas/30">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Option B: Datei-Upload</label>
+                <label className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-4">Option B: Datei-Upload</label>
                 <input type="file" accept=".json" onChange={handleFileUpload} className="hidden" id="formula-file" />
                 <label 
                   htmlFor="formula-file" 
@@ -208,7 +208,7 @@ export default function FormulasPage() {
                 {/* FAVORIT BUTTON */}
                 <button 
                   onClick={() => toggleFavorite(f.id, f.is_favorite)}
-                  className={`pl-6 text-2xl transition-all active:scale-125 ${f.is_favorite ? 'text-yellow-400 opacity-100' : 'text-gray-400 opacity-20 hover:opacity-50'}`}
+                  className={`pl-6 text-2xl transition-all active:scale-125 ${f.is_favorite ? 'text-yellow-400 opacity-100' : 'text-gray-600 dark:text-gray-400 opacity-20 hover:opacity-50'}`}
                 >
                   {f.is_favorite ? '⭐' : '☆'}
                 </button>
@@ -245,13 +245,13 @@ export default function FormulasPage() {
                       
                       <div className="space-y-2">
                         <h4 className="text-[10px] font-bold text-gray-500 uppercase">Kontext & Parameter</h4>
-                        <p className="text-gray-400 text-sm leading-relaxed">
+                        <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
                           {f.context && f.context.includes(':') ? f.context.split(':').slice(1).join(':').trim() : f.context}
                         </p>
                       </div>
 
                       <div className="flex justify-between items-center pt-4 border-t border-gray-100/5">
-                        <span className="text-[10px] bg-zinc-800 text-gray-400 px-3 py-1 rounded-lg uppercase font-bold tracking-widest">
+                        <span className="text-[10px] bg-zinc-800 text-gray-600 dark:text-gray-400 px-3 py-1 rounded-lg uppercase font-bold tracking-widest">
                           Quelle: {f.source}
                         </span>
                         <button 

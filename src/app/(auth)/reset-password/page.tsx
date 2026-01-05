@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
 
         <form onSubmit={handleUpdatePassword} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Neues Passwort</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Neues Passwort</label>
             <input
               type="password"
               placeholder="••••••••"
@@ -79,7 +79,7 @@ export default function ResetPasswordPage() {
         <div className="mt-6 text-center">
           <button 
             onClick={() => router.push('/login')}
-            className="text-xs text-gray-400 hover:text-primary transition underline"
+            className="text-xs text-gray-600 dark:text-gray-400 hover:text-primary transition underline"
           >
             Zurück zum Login
           </button>

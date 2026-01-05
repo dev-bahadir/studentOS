@@ -143,9 +143,9 @@ export default function PromptsPage() {
 
       {/* GRID LISTE */}
       {loading ? (
-        <div className="text-center py-20 text-gray-400">Lade Prompts...</div>
+        <div className="text-center py-20 text-gray-600 dark:text-gray-400">Lade Prompts...</div>
       ) : filteredPrompts.length === 0 ? (
-        <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed border-gray-200 text-gray-400">
+        <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed border-gray-200 text-gray-600 dark:text-gray-400">
           Noch keine Prompts in dieser Kategorie.
         </div>
       ) : (

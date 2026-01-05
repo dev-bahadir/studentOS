@@ -66,7 +66,7 @@ export default function RadarPage() {
   };
 
   const getUrgencyColor = (days: number) => {
-    if (days < 0) return 'bg-gray-100 border-gray-200 text-gray-400'; // Vorbei
+    if (days < 0) return 'bg-gray-100 border-gray-200 text-gray-600 dark:text-gray-400'; // Vorbei
     if (days <= 3) return 'bg-red-50 border-red-200 text-red-700 animate-pulse'; // ALARM
     if (days <= 7) return 'bg-orange-50 border-orange-200 text-orange-700'; // Bald
     return 'bg-green-50 border-green-200 text-green-700'; // Entspannt
@@ -132,9 +132,9 @@ export default function RadarPage() {
 
       {/* LISTE */}
       {loading ? (
-        <div className="text-center py-20 text-gray-400">Scanne Radar...</div>
+        <div className="text-center py-20 text-gray-600 dark:text-gray-400">Scanne Radar...</div>
       ) : exams.length === 0 ? (
-        <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed border-gray-200 text-gray-400">
+        <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed border-gray-200 text-gray-600 dark:text-gray-400">
           Alles ruhig. Keine Prüfungen in Sicht. 🏖️
         </div>
       ) : (

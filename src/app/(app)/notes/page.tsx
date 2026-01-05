@@ -94,7 +94,7 @@ export default function NotesPage() {
         
         <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-3 w-full sm:w-auto bg-canvas p-2 rounded-xl border border-gray-100/10">
-            <span className="text-xs font-bold text-gray-400 ml-2">PARA:</span>
+            <span className="text-xs font-bold text-gray-600 dark:text-gray-400 ml-2">PARA:</span>
             <select 
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}

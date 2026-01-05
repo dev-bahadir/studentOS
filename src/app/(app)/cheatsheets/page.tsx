@@ -164,9 +164,9 @@ export default function CheatSheetsPage() {
       {/* GRID */}
       <div className="grid grid-cols-1 gap-4">
         {loading ? (
-            <div className="text-center py-20 text-gray-400">Lade Sheets...</div>
+            <div className="text-center py-20 text-gray-600 dark:text-gray-400">Lade Sheets...</div>
         ) : sheets.length === 0 ? (
-            <div className="text-center py-20 bg-gray-50 rounded-3xl border border-gray-100 text-gray-400">
+            <div className="text-center py-20 bg-gray-50 rounded-3xl border border-gray-100 text-gray-600 dark:text-gray-400">
                 Lade dein erstes Cheat Sheet hoch!
             </div>
         ) : (
@@ -182,7 +182,7 @@ export default function CheatSheetsPage() {
                             </div>
                             <div>
                                 <h3 className="font-bold text-gray-800 text-lg">{s.title}</h3>
-                                <p className="text-gray-400 text-xs mt-1 uppercase font-bold tracking-wider">
+                                <p className=" text-xs mt-1 uppercase font-bold tracking-wider">
                                     {s.format} • {new Date(s.created_at).toLocaleDateString()}
                                 </p>
                             </div>
