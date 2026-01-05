@@ -38,15 +38,14 @@ export default function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             <div className="min-h-screen bg-canvas text-ink">
-              {/* 1. Die Sidebar (ist fixed, braucht keinen Platz im Flow) */}
-              <Sidebar />
               
-              {/* 2. Der Hauptinhalt (Main) */}
-              {/* lg:pl-64 -> Platz für Sidebar auf Desktop */}
-              {/* pt-20    -> Platz für Burger-Button auf Handy */}
+              {/* Hier binden wir die Navigation ein (die technisch die Sidebar ist) */}
+              <Sidebar /> 
+
               <main className="w-full lg:pl-64 pt-20 lg:pt-8 px-4 pb-24">
                 {children}
               </main>
+
             </div>
           </ThemeProvider>
         </AuthProvider>
