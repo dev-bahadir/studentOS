@@ -43,10 +43,29 @@ export function Sidebar() {
   const router = useRouter();
   const { theme, changeTheme } = useTheme();
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
+const handleLogout = async () => {
+    try {
+      // 1. Supabase Session beenden
+      await supabase.auth.signOut();
+      
+      // 2. Browser-Speicher komplett leeren
+      localStorage.clear();
+      sessionStorage.clear(); // Wichtig für iOS
+
+      // 3. Der iOS-Trick: 
+      // Wir geben Safari 100ms Zeit, die Cookies wirklich zu löschen,
+      // bevor wir die Seite wechseln.
+      setTimeout(() => {
+        // window.location.replace ist besser als href oder router.push,
+        // weil es den Eintrag im Browser-Verlauf ÜBERSCHREIBT.
+        // Das verhindert, dass man per "Wisch zurück" wieder im Dashboard landet.
+        window.location.replace('/login');
+      }, 100);
+
+    } catch (error) {
+      // Fallback, falls was schief geht
+      window.location.href = '/login';
+    }
   };
 
   const toggleDarkMode = () => {
