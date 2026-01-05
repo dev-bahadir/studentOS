@@ -2,16 +2,16 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
-import { AuthProvider } from "../components/providers/AuthProvider";
-import { ThemeProvider } from "../components/providers/ThemeProvider"; 
-import Navigation from "../components/Navigation"; 
+import { AuthProvider } from "@/components/providers/AuthProvider";
+import { ThemeProvider } from "@/components/providers/ThemeProvider"; 
+import { Sidebar } from "@/components/Sidebar"; // <--- WICHTIG: Hier die richtige Sidebar importieren!
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "ElectroBrain OS",
   description: "Dein Second Brain",
-manifest: "/manifest.json", 
+  manifest: "/manifest.json", 
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -19,7 +19,6 @@ manifest: "/manifest.json",
   },
 };
 
-// Damit Zoom auf dem Handy verhindert wird und es wie eine App wirkt:
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -27,7 +26,6 @@ export const viewport: Viewport = {
   userScalable: false, 
   themeColor: "#111827",
 };
-
 
 export default function RootLayout({
   children,
@@ -39,9 +37,14 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthProvider>
           <ThemeProvider>
-            <div className="flex min-h-screen bg-canvas text-ink transition-colors duration-500">
-              <Navigation />
-              <main className="flex-1 w-full md:ml-64 pb-24 md:pb-8">
+            <div className="min-h-screen bg-canvas text-ink">
+              {/* 1. Die Sidebar (ist fixed, braucht keinen Platz im Flow) */}
+              <Sidebar />
+              
+              {/* 2. Der Hauptinhalt (Main) */}
+              {/* lg:pl-64 -> Platz für Sidebar auf Desktop */}
+              {/* pt-20    -> Platz für Burger-Button auf Handy */}
+              <main className="w-full lg:pl-64 pt-20 lg:pt-8 px-4 pb-24">
                 {children}
               </main>
             </div>
