@@ -4,7 +4,7 @@ import "./globals.css";
 
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider"; 
-import { Sidebar } from "@/components/Sidebar"; // <--- WICHTIG: Hier die richtige Sidebar importieren!
+import { Sidebar } from "@/components/Navigation"; // <--- WICHTIG: Hier die richtige Sidebar importieren!
 
 const inter = Inter({ subsets: ["latin"] });
 
