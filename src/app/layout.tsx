@@ -42,7 +42,7 @@ export default function RootLayout({
               {/* Hier binden wir die Navigation ein (die technisch die Sidebar ist) */}
               <Sidebar /> 
 
-              <main className="w-full lg:pl-64 pt-20 lg:pt-8 px-4 pb-24">
+              <main className="w-full lg:pl-64 pt-20 lg:pt-4 px-2 pb-24">
                 {children}
               </main>
 
