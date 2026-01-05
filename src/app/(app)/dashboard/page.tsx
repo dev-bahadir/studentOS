@@ -2,21 +2,31 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
 
-// 👇 Importe
-import { supabase } from '../../../supabaseClient'; 
-import { useAuth } from '../../../components/providers/AuthProvider';
-import QuotePlayer from '../../../components/QuotePlayer';
-import { useTheme } from '../../../components/providers/ThemeProvider';
-import { Sidebar } from '@/components/Navigation'; // Falls nötig, aber Sidebar ist im Layout
+// 👇 Absolute Imports für Stabilität
+import { supabase } from '@/supabaseClient'; 
+import { useAuth } from '@/components/providers/AuthProvider';
+import QuotePlayer from '@/components/QuotePlayer';
+import { useTheme } from '@/components/providers/ThemeProvider';
+import { 
+  Brain, 
+  FileText, 
+  Layers, 
+  Zap, 
+  Lock, 
+  Database, 
+  ChevronRight,
+  Sparkles
+} from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { fullName } = useTheme();
   
   const [stats, setStats] = useState({ decks: 0, cards: 0, notes: 0 });
-  const [xpData, setXpData] = useState({ xp: 0, level: 1, progress: 0, nextLevelXp: 500 }); // 👈 NEU: nextLevelXp
+  const [xpData, setXpData] = useState({ xp: 0, level: 1, progress: 0, nextLevelXp: 500 });
   const [isApproved, setIsApproved] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -25,45 +35,6 @@ export default function Dashboard() {
   const [favPreview, setFavPreview] = useState<string | null>(null);
   const [jsonInput, setJsonInput] = useState('');
   const [importing, setImporting] = useState(false);
-
-  // --- UNZERSTÖRBARER IMPORT ---
-  const handleBulkImport = async () => {
-    try {
-      setImporting(true);
-      const parsedData = JSON.parse(jsonInput);
-      const formulasToInsert = Array.isArray(parsedData) ? parsedData : [parsedData];
-
-      const finalData = formulasToInsert.map(f => ({
-        name: f.name || "Unbenannte Formel",
-        formula: f.formula || f.math || "", 
-        context: f.context || f.desc || (f.category ? `${f.category}: Keine Beschreibung` : "Allgemein: Keine Beschreibung"), 
-        source: f.source || "NotebookLM",
-        is_favorite: false,
-        user_id: user?.id
-      }));
-
-      const { error } = await supabase.from('formulas').insert(finalData);
-      if (error) throw error;
-
-      // --- BALANCING UPDATE ---
-      // Vorher: 10 XP pro Formel (Viel zu viel!)
-      // Neu: 2 XP pro Formel, aber MAXIMAL 50 XP pro Import-Vorgang (Spamschutz)
-      const xpPerItem = 2;
-      const calculatedXp = finalData.length * xpPerItem;
-      const totalXpBonus = Math.min(calculatedXp, 50); 
-
-      await supabase.rpc('increment_xp', { x: totalXpBonus, row_id: user?.id });
-
-      alert(`Erfolg! ${finalData.length} Formeln geladen & +${totalXpBonus} XP!`);
-      setJsonInput('');
-      fetchFormulas();
-      checkApprovalAndFetchData(); 
-    } catch (err: any) {
-      alert("Fehler: " + err.message);
-    } finally {
-      setImporting(false);
-    }
-  };
 
   useEffect(() => {
     if (user) {
@@ -74,13 +45,11 @@ export default function Dashboard() {
   const checkApprovalAndFetchData = async () => {
     if (!user) return;
     const { data: profile } = await supabase.from('profiles').select('xp, is_approved').eq('id', user.id).single();
+    
     if (profile) {
       setIsApproved(profile.is_approved);
       if (profile.is_approved) {
         const currentXP = profile.xp || 0;
-        
-        // --- BALANCING UPDATE ---
-        // Level-System: Alle 500 XP ein Level (statt 100)
         const LEVEL_THRESHOLD = 500;
         const level = Math.floor(currentXP / LEVEL_THRESHOLD) + 1;
         const progressXP = currentXP % LEVEL_THRESHOLD;
@@ -124,127 +93,186 @@ export default function Dashboard() {
     setStats({ decks: d || 0, cards: c || 0, notes: n || 0 });
   };
 
+  const handleBulkImport = async () => {
+    try {
+      setImporting(true);
+      const parsedData = JSON.parse(jsonInput);
+      const formulasToInsert = Array.isArray(parsedData) ? parsedData : [parsedData];
+
+      const finalData = formulasToInsert.map(f => ({
+        name: f.name || "Unbenannte Formel",
+        formula: f.formula || f.math || "", 
+        context: f.context || f.desc || "Allgemein", 
+        source: f.source || "NotebookLM",
+        user_id: user?.id
+      }));
+
+      const { error } = await supabase.from('formulas').insert(finalData);
+      if (error) throw error;
+
+      const totalXpBonus = Math.min(finalData.length * 2, 50); 
+      await supabase.rpc('increment_xp', { x: totalXpBonus, row_id: user?.id });
+
+      alert(`Erfolg! ${finalData.length} Formeln importiert.`);
+      setJsonInput('');
+      fetchFormulas();
+      checkApprovalAndFetchData(); 
+    } catch (err: any) {
+      alert("Fehler: " + err.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (loading) return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary"></div>
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+      <div className="animate-spin rounded-full h-10 w-10 border-4 border-cyan-500 border-t-transparent"></div>
     </div>
   );
 
   if (isApproved === false) return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center p-6 text-center">
-      <div className="max-w-md bg-panel p-10 rounded-3xl shadow-2xl border border-gray-100/10">
-        <h2 className="text-3xl font-bold text-ink mb-4">Warteliste ⏳</h2>
-        <p className="text-gray-500 mb-8 leading-relaxed">Dein Account wird gerade manuell freigeschaltet.</p>
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-6 text-center">
+      <div className="max-w-md bg-white dark:bg-zinc-900 p-10 rounded-[2.5rem] shadow-xl border border-zinc-200 dark:border-zinc-800">
+        <Lock className="mx-auto text-cyan-500 mb-6" size={48} />
+        <h2 className="text-3xl font-black text-zinc-900 dark:text-white mb-4 tracking-tight">Warteliste</h2>
+        <p className="text-zinc-500 dark:text-zinc-400 mb-8 leading-relaxed">Dein Account wird gerade manuell freigeschaltet. Bitte hab einen Moment Geduld.</p>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-canvas p-4 md:p-8 transition-colors duration-500 pb-32">
+    <div className="min-h-screen bg-transparent p-4 md:p-10 pb-32 transition-colors duration-500">
       <div className="max-w-5xl mx-auto">
         
-        {/* HEADER */}
-        <header className="mb-8 bg-panel p-6 rounded-2xl shadow-sm border border-gray-100/10">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-4">
+        {/* HEADER & XP BAR */}
+        <header className="mb-10 bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] shadow-sm border border-zinc-200 dark:border-zinc-800">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-ink">
-                Hallo, <span className="text-primary">{fullName || user?.email?.split('@')[0]}</span>!
+              <h1 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tight">
+                Willkommen, <span className="text-cyan-500">{fullName || user?.email?.split('@')[0]}</span>!
               </h1>
-              <p className="text-gray-500 mt-1 text-sm">Level {xpData.level} • {xpData.xp} XP Gesamt</p>
+              <div className="flex items-center gap-3 mt-2">
+                 <span className="bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest">
+                   Level {xpData.level}
+                 </span>
+                 <span className="text-zinc-400 text-sm font-medium">{xpData.xp} XP Gesamt</span>
+              </div>
             </div>
-            <div className="text-left md:text-right w-full md:w-auto">
-              {/* Anzeige angepasst für 500er Schritte */}
-              <span className="text-sm font-bold text-primary">
-                 {xpData.xp % xpData.nextLevelXp} / {xpData.nextLevelXp} XP zum Aufstieg
-              </span>
-              <div className="w-full md:w-48 bg-gray-200/50 rounded-full h-2 mt-1">
-                <div 
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-1000" 
-                  style={{ width: `${xpData.progress}%` }}
-                ></div>
+            
+            <div className="w-full md:w-64 space-y-2">
+              <div className="flex justify-between text-xs font-black text-zinc-400 uppercase tracking-tighter">
+                <span>Aufstieg</span>
+                <span>{xpData.xp % xpData.nextLevelXp} / {xpData.nextLevelXp} XP</span>
+              </div>
+              <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-3 overflow-hidden shadow-inner border border-zinc-200/50 dark:border-zinc-700/50">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${xpData.progress}%` }}
+                  className="bg-gradient-to-r from-cyan-500 to-blue-600 h-full shadow-[0_0_10px_rgba(6,182,212,0.5)]" 
+                />
               </div>
             </div>
           </div>
         </header>
 
-        {/* SPLIT GRID FÜR QUOTE & BILD-PLAYER */}
+        {/* HERO GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-panel rounded-2xl border border-gray-100/10 overflow-hidden">
+          <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
             <QuotePlayer />
           </div>
           
-          <div className="bg-gradient-to-br from-indigo-500/10 to-purple-600/10 rounded-2xl border border-primary/20 p-6 flex items-center justify-center text-center">
-            <div>
-               <span className="text-4xl mb-2 block">🖼️</span>
-               <p className="text-gray-500 text-sm font-bold">Bild-Player</p>
-               <p className="text-xs text-gray-600 dark:text-gray-400">Kommt bald...</p>
-            </div>
+          <div className="bg-zinc-900 dark:bg-zinc-100 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-center relative overflow-hidden group shadow-xl">
+             <div className="relative z-10">
+                <div className="bg-zinc-800 dark:bg-zinc-200 p-4 rounded-3xl mb-4 mx-auto w-fit">
+                   <Image src="/icons/icon-512x512.png" alt="Logo" width={60} height={60} className="dark:invert" />
+                </div>
+                <p className="text-zinc-400 dark:text-zinc-500 text-xs font-black uppercase tracking-widest mb-1">System Status</p>
+                <p className="text-white dark:text-zinc-900 font-bold">ElectroBrain OS v1.0</p>
+             </div>
+             <Sparkles className="absolute top-4 right-4 text-cyan-500 opacity-20 group-hover:rotate-12 transition-transform" />
           </div>
         </div>
 
-        {/* STATS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
-          <Link href="/flashcards">
-            <div className="bg-panel p-6 rounded-2xl border border-gray-100/10 hover:shadow-lg transition cursor-pointer">
-              <p className="text-gray-500 font-medium">Lern-Decks</p>
-              <h2 className="text-4xl font-bold text-ink">{stats.decks}</h2>
+        {/* STATS TILES */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <Link href="/flashcards" className="group">
+            <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 hover:border-cyan-500/30 transition-all hover:shadow-lg">
+              <div className="flex justify-between items-start mb-4 text-zinc-400">
+                <Layers size={20} />
+                <ChevronRight className="group-hover:translate-x-1 transition-transform" size={18} />
+              </div>
+              <p className="text-zinc-500 dark:text-zinc-400 font-bold text-sm uppercase tracking-wider">Lern-Decks</p>
+              <h2 className="text-5xl font-black text-zinc-900 dark:text-white mt-2">{stats.decks}</h2>
             </div>
           </Link>
-          <Link href="/flashcards">
-            <div className="bg-panel p-6 rounded-2xl border border-gray-100/10 hover:shadow-lg transition cursor-pointer">
-              <p className="text-gray-500 font-medium">Karten</p>
-              <h2 className="text-4xl font-bold text-ink">{stats.cards}</h2>
+          
+          <Link href="/flashcards" className="group">
+            <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 hover:border-cyan-500/30 transition-all hover:shadow-lg">
+              <div className="flex justify-between items-start mb-4 text-zinc-400">
+                <Brain size={20} />
+                <ChevronRight className="group-hover:translate-x-1 transition-transform" size={18} />
+              </div>
+              <p className="text-zinc-500 dark:text-zinc-400 font-bold text-sm uppercase tracking-wider">Karten</p>
+              <h2 className="text-5xl font-black text-zinc-900 dark:text-white mt-2">{stats.cards}</h2>
             </div>
           </Link>
-          <Link href="/notes">
-            <div className="bg-panel p-6 rounded-2xl border border-gray-100/10 hover:shadow-lg transition cursor-pointer">
-              <p className="text-gray-500 font-medium">Notizen</p>
-              <h2 className="text-4xl font-bold text-ink">{stats.notes}</h2>
+
+          <Link href="/notes" className="group">
+            <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 hover:border-cyan-500/30 transition-all hover:shadow-lg">
+              <div className="flex justify-between items-start mb-4 text-zinc-400">
+                <FileText size={20} />
+                <ChevronRight className="group-hover:translate-x-1 transition-transform" size={18} />
+              </div>
+              <p className="text-zinc-500 dark:text-zinc-400 font-bold text-sm uppercase tracking-wider">Notizen</p>
+              <h2 className="text-5xl font-black text-zinc-900 dark:text-white mt-2">{stats.notes}</h2>
             </div>
           </Link>
         </div>
 
         {/* WISSENS-TRESOR TEASER */}
         <section className="mb-12">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-ink">Wissens-Tresor</h2>
-            <Link href="/formulas" className="text-sm text-primary font-bold hover:underline">Alle anzeigen →</Link>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Wissens-Tresor</h2>
+            <Link href="/formulas" className="text-sm text-cyan-500 font-black uppercase tracking-widest hover:underline flex items-center gap-1">
+              Alle anzeigen <ChevronRight size={14} />
+            </Link>
           </div>
           <Link href="/formulas">
-            <div className="bg-gradient-to-br from-blue-500/10 to-purple-600/10 p-6 rounded-3xl border border-primary/20 flex items-center justify-between group active:scale-[0.98] transition-all">
-              <div className="flex items-center gap-4">
-                <div className="text-3xl">⚛️</div>
+            <div className="bg-gradient-to-br from-cyan-500/10 to-blue-600/10 p-8 rounded-[2.5rem] border border-cyan-500/20 flex items-center justify-between group active:scale-[0.98] transition-all shadow-sm">
+              <div className="flex items-center gap-6">
+                <div className="bg-white dark:bg-zinc-800 p-4 rounded-3xl text-3xl shadow-sm group-hover:rotate-12 transition-transform">⚛️</div>
                 <div>
-                  <p className="text-ink font-bold">Formeln & Wissen</p>
-                  <p className="text-gray-500 text-xs">
-                    {favPreview 
-                      ? `⭐ Favorit: ${favPreview}` 
-                      : `${formulas.length} Einträge griffbereit`}
+                  <p className="text-zinc-900 dark:text-white font-black text-lg">Formeln & Wissen</p>
+                  <p className="text-zinc-500 dark:text-zinc-400 font-medium">
+                    {favPreview ? `⭐ Favorit: ${favPreview}` : `${formulas.length} Einträge griffbereit`}
                   </p>
                 </div>
               </div>
-              <div className="bg-primary text-white p-2 rounded-xl group-hover:translate-x-1 transition-transform">
-                →
+              <div className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 p-4 rounded-2xl group-hover:translate-x-2 transition-all">
+                <ChevronRight size={24} />
               </div>
             </div>
           </Link>
         </section>
 
-        {/* IMPORT */}
-        <section className="mt-12 p-6 bg-panel rounded-3xl border border-dashed border-primary/20">
-          <h2 className="text-lg font-bold text-ink mb-4 flex items-center gap-2"><span>🚀</span> NotebookLM Bulk-Import</h2>
+        {/* BULK IMPORT */}
+        <section className="p-8 bg-zinc-50 dark:bg-zinc-900/50 rounded-[2.5rem] border border-dashed border-zinc-300 dark:border-zinc-700">
+          <div className="flex items-center gap-3 mb-6">
+             <Database className="text-cyan-500" size={24} />
+             <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">NotebookLM Bulk-Import</h2>
+          </div>
           <textarea
             value={jsonInput}
             onChange={(e) => setJsonInput(e.target.value)}
-            placeholder='Kopiere dein JSON hier rein...'
-            className="w-full h-32 p-4 bg-canvas border border-gray-100/10 rounded-2xl text-xs font-mono text-ink outline-none focus:ring-2 focus:ring-primary/50"
+            placeholder='Füge dein NotebookLM-JSON hier ein...'
+            className="w-full h-40 p-5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl text-sm font-mono text-zinc-800 dark:text-zinc-200 outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-zinc-400 shadow-inner"
           />
           <button
             onClick={handleBulkImport}
             disabled={importing || !jsonInput}
-            className="mt-4 w-full bg-primary hover:bg-primary/90 text-white py-4 rounded-2xl font-bold transition-all disabled:opacity-50 active:scale-95"
+            className="mt-6 w-full bg-cyan-600 hover:bg-cyan-700 text-white py-5 rounded-2xl font-black text-lg transition-all disabled:opacity-50 active:scale-95 flex items-center justify-center gap-3 shadow-lg shadow-cyan-600/20"
           >
-            {importing ? 'Lädt...' : 'Daten einspeisen & XP sammeln'}
+            {importing ? 'Synchronisiere...' : <><Zap size={22} /> Daten einspeisen & XP sammeln</>}
           </button>
         </section>
       </div>

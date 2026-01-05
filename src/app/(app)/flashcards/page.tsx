@@ -1,271 +1,208 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { 
+  Brain, 
+  CheckCircle2, 
+  XCircle, 
+  AlertCircle, 
+  Info, 
+  ChevronRight 
+} from 'lucide-react';
 
-// Erweiterter Typ für Decks inklusive Statistiken
-type Deck = {
+type Flashcard = {
   id: number;
-  title: string;
-  created_at: string;
-  user_id: string;
-  // Berechnete Felder für das UI
-  total_cards: number;
-  due_cards: number;
-  new_cards: number;
+  question: string;
+  answer: string;
+  interval: number;
+  ease: number;
+  next_review: string;
 };
 
-export default function FlashcardsList() {
-  const [decks, setDecks] = useState<Deck[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function FlashcardsPage() {
   const { user } = useAuth();
-  
-  const [isCreating, setIsCreating] = useState(false);
-  const [newDeckTitle, setNewDeckTitle] = useState('');
-  
-  const [isImporting, setIsImporting] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<string[]>([]);
+  const [cards, setCards] = useState<Flashcard[]>([]);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ total: 0, due: 0, learned: 0 });
 
   useEffect(() => {
-    fetchDecks();
+    if (user) {
+      fetchDueCards();
+      fetchStats();
+    }
   }, [user]);
 
-  const fetchDecks = async () => {
-    if (!user) return;
+  const fetchStats = async () => {
+    const { count: total } = await supabase.from('flashcards').select('*', { count: 'exact', head: true }).eq('user_id', user?.id);
+    const { count: due } = await supabase.from('flashcards').select('*', { count: 'exact', head: true }).eq('user_id', user?.id).lte('next_review', new Date().toISOString());
+    
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const { count: learned } = await supabase.from('flashcards').select('*', { count: 'exact', head: true }).eq('user_id', user?.id).gte('last_review', today.toISOString());
 
-    // Wir holen das Deck UND die dazugehörigen Karten (Box & Datum), um Stats zu berechnen
-    const { data, error } = await supabase
-      .from('decks')
-      .select(`
-        *,
-        flashcards (
-          id,
-          box,
-          next_review
-        )
-      `)
-      .order('created_at', { ascending: false });
+    setStats({ total: total || 0, due: due || 0, learned: learned || 0 });
+  };
 
-    if (!error && data) {
-      const now = new Date();
+  const fetchDueCards = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('flashcards')
+      .select('*')
+      .eq('user_id', user?.id)
+      .lte('next_review', new Date().toISOString())
+      .order('next_review', { ascending: true });
 
-      // Daten transformieren und Statistiken berechnen
-      const formattedDecks: Deck[] = data.map((deck: any) => {
-        const cards = deck.flashcards || [];
-        
-        // Fällig: Datum ist in der Vergangenheit oder heute
-        const dueCount = cards.filter((c: any) => 
-          c.next_review && new Date(c.next_review) <= now
-        ).length;
-
-        // Neu: Noch nie gelernt (Box 0 oder 1 und kein Review-Datum oder Datum ist null)
-        // (Hier vereinfacht: Box 1 ist oft "Neu" im Leitner System, je nach Implementierung)
-        
-        return {
-          id: deck.id,
-          title: deck.title,
-          created_at: deck.created_at,
-          user_id: deck.user_id,
-          total_cards: cards.length,
-          due_cards: dueCount,
-          new_cards: cards.length // Platzhalter, falls du spezifische "Neue" Logik brauchst
-        };
-      });
-
-      setDecks(formattedDecks);
-    }
+    if (data) setCards(data as Flashcard[]);
     setLoading(false);
   };
 
-  const createDeck = async () => {
-    if (!newDeckTitle.trim() || !user) return;
-    const { error } = await supabase.from('decks').insert([{ title: newDeckTitle, user_id: user.id }]);
-    if (error) alert(error.message);
-    else { setNewDeckTitle(''); setIsCreating(false); fetchDecks(); }
-  };
+  const handleRate = async (grade: number) => {
+    const card = cards[currentCardIndex];
+    let { interval, ease, id } = card;
 
-  const deleteDeck = async (id: number, e: React.MouseEvent) => {
-    e.preventDefault(); 
-    e.stopPropagation();
-    if (!confirm('Deck wirklich löschen? Alle Karten darin gehen verloren.')) return;
-    const { error } = await supabase.from('decks').delete().eq('id', id);
-    if (!error) fetchDecks();
-    else alert("Fehler beim Löschen: " + error.message);
-  };
+    // SM-2 Algorithmus Logik
+    if (grade >= 3) {
+      if (interval === 0) interval = 1;
+      else if (interval === 1) interval = 6;
+      else interval = Math.round(interval * ease);
+      ease = Math.max(1.3, ease + (0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02)));
+    } else {
+      interval = 1;
+      ease = Math.max(1.3, ease - 0.2);
+    }
 
-  const processFile = async (file: File) => {
-    if (!user) return;
-    const deckTitle = file.name.replace('.json', '');
-    
-    try {
-      const text = await file.text();
-      const cards = JSON.parse(text);
-      if (!Array.isArray(cards)) throw new Error('Format ungültig');
+    const nextReview = new Date();
+    nextReview.setDate(nextReview.getDate() + interval);
 
-      const { data: deck, error: deckError } = await supabase
-        .from('decks')
-        .insert([{ title: deckTitle, user_id: user.id }])
-        .select().single();
+    const { error } = await supabase
+      .from('flashcards')
+      .update({
+        interval: interval,
+        ease: ease,
+        next_review: nextReview.toISOString(),
+        last_review: new Date().toISOString()
+      })
+      .eq('id', id);
 
-      if (deckError || !deck) throw new Error('Deck-Erstellung fehlgeschlagen');
-
-      // Beim Import: Box 1, Next Review = Jetzt (damit sie sofort lernbar sind)
-      const cardsToInsert = cards.map((c: any) => ({
-        deck_id: deck.id,
-        front: c.front || c.Frage || '?',
-        back: c.back || c.Antwort || '?',
-        user_id: user.id,
-        box: 1,
-        next_review: new Date().toISOString()
-      }));
-
-      const { error: cardsError } = await supabase.from('flashcards').insert(cardsToInsert);
-      if (cardsError) throw new Error('Karten-Import fehlgeschlagen');
-
-      setUploadStatus(prev => [...prev, `✅ ${file.name} erfolgreich.`]);
-    } catch (err: any) {
-      setUploadStatus(prev => [...prev, `❌ ${file.name}: ${err.message}`]);
+    if (!error) {
+      setShowAnswer(false);
+      if (currentCardIndex < cards.length - 1) {
+        setCurrentCardIndex(prev => prev + 1);
+      } else {
+        setCards([]); 
+        fetchStats();
+      }
     }
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files);
-    for (const file of files) await processFile(file);
-    fetchDecks();
-  };
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-zinc-500 gap-4">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cyan-500"></div>
+      <p className="font-medium">Lade Decks...</p>
+    </div>
+  );
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-screen pb-24">
+    <div className="p-4 md:p-10 max-w-5xl mx-auto pb-32 text-zinc-900 dark:text-zinc-100 transition-colors">
       
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+      {/* Header mit kompakten Stats */}
+      <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-800">Meine Decks 🗂️</h1>
-          <p className="text-zinc-500 mt-1">Wähle ein Deck zum Lernen aus</p>
+          <h1 className="text-4xl font-black tracking-tight dark:text-white">Flashcards 🧠</h1>
+          <p className="text-zinc-500 font-medium">Daily Brain Training</p>
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
-          <button onClick={() => setIsImporting(true)} className="flex-1 md:flex-none bg-zinc-800 text-white px-4 py-2 rounded-xl font-medium active:scale-95 transition flex items-center justify-center gap-2">
-            <span>📥</span> Import
-          </button>
-          <button onClick={() => setIsCreating(true)} className="flex-1 md:flex-none bg-blue-600 text-white px-4 py-2 rounded-xl font-medium active:scale-95 transition flex items-center justify-center gap-2">
-            <span>+</span> Neu
-          </button>
-        </div>
-      </div>
-
-      {/* MODAL: IMPORT */}
-      {isImporting && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-xl shadow-2xl">
-            <h2 className="text-xl font-bold mb-4">JSON Import</h2>
-            <div 
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              className={`border-4 border-dashed rounded-2xl p-10 text-center transition ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-zinc-100 bg-zinc-50'}`}
-            >
-              <p className="mb-4 text-zinc-500 font-medium">Dateien hierher ziehen</p>
-              <label className="bg-white border border-zinc-200 px-4 py-2 rounded-xl cursor-pointer shadow-sm hover:bg-zinc-50 transition">
-                Auswählen
-                <input type="file" multiple accept=".json" onChange={async (e) => {
-                  if (e.target.files) {
-                    for (const f of Array.from(e.target.files)) await processFile(f);
-                    fetchDecks();
-                  }
-                }} className="hidden" />
-              </label>
-            </div>
-            <div className="mt-4 max-h-32 overflow-y-auto text-xs font-mono space-y-1">
-              {uploadStatus.map((s, i) => <div key={i}>{s}</div>)}
-            </div>
-            <button onClick={() => setIsImporting(false)} className="mt-6 w-full bg-zinc-900 text-white py-3 rounded-xl font-bold">Fertig</button>
+        
+        <div className="flex gap-3 w-full md:w-auto">
+          <div className="flex-1 md:w-32 bg-zinc-100 dark:bg-zinc-800/50 p-4 rounded-3xl border border-zinc-200 dark:border-zinc-700 text-center">
+            <span className="block text-[10px] uppercase font-black text-zinc-400 mb-1">Due</span>
+            <span className="text-2xl font-black text-cyan-600 dark:text-cyan-400">{stats.due}</span>
+          </div>
+          <div className="flex-1 md:w-32 bg-zinc-900 dark:bg-zinc-100 p-4 rounded-3xl text-center shadow-xl">
+            <span className="block text-[10px] uppercase font-black text-zinc-500 dark:text-zinc-400 mb-1">Done</span>
+            <span className="text-2xl font-black text-white dark:text-zinc-900">{stats.learned}</span>
           </div>
         </div>
-      )}
+      </header>
 
-      {/* EINGABE: NEUES DECK */}
-      {isCreating && (
-        <div className="mb-8 p-4 bg-white border border-blue-100 shadow-sm rounded-2xl flex gap-2 animate-in fade-in slide-in-from-top-4">
-          <input
-            value={newDeckTitle}
-            onChange={(e) => setNewDeckTitle(e.target.value)}
-            placeholder="Name des neuen Decks..."
-            className="flex-1 p-3 rounded-xl bg-zinc-50 border-none outline-none focus:ring-2 focus:ring-blue-500"
-            autoFocus
-            onKeyDown={(e) => e.key === 'Enter' && createDeck()}
-          />
-          <button onClick={createDeck} className="bg-blue-600 text-white px-6 rounded-xl font-bold">Erstellen</button>
-          <button onClick={() => setIsCreating(false)} className="bg-zinc-100 text-zinc-500 px-4 rounded-xl font-bold hover:bg-zinc-200">✕</button>
-        </div>
-      )}
+      {cards.length > 0 ? (
+        <div className="max-w-3xl mx-auto space-y-8">
+          {/* Progress Bar */}
+          <div className="flex items-center gap-4">
+            <div className="flex-1 bg-zinc-200 dark:bg-zinc-800 h-3 rounded-full overflow-hidden shadow-inner">
+              <div 
+                className="bg-cyan-500 h-full transition-all duration-700 ease-out shadow-[0_0_15px_rgba(6,182,212,0.5)]" 
+                style={{ width: `${((currentCardIndex + 1) / cards.length) * 100}%` }}
+              />
+            </div>
+            <span className="text-xs font-bold text-zinc-400">{currentCardIndex + 1} / {cards.length}</span>
+          </div>
 
-      {/* LISTE */}
-      {loading ? (
-        <div className="flex justify-center py-20"><div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>
-      ) : decks.length === 0 ? (
-        <div className="text-center py-20 bg-zinc-50 rounded-3xl border border-dashed border-zinc-200">
-          <div className="text-4xl mb-4">📭</div>
-          <h3 className="text-xl font-bold text-zinc-700">Keine Decks vorhanden</h3>
-          <p className="text-zinc-500 mt-2">Erstelle ein neues Deck oder importiere Karten, um loszulegen.</p>
+          {/* Flashcard Box */}
+          <div 
+            onClick={() => !showAnswer && setShowAnswer(true)}
+            className={`min-h-[420px] group flex flex-col items-center justify-center p-8 md:p-16 rounded-[3.5rem] border-2 transition-all duration-500 relative overflow-hidden ${
+              showAnswer 
+              ? 'bg-white dark:bg-zinc-900 border-cyan-500/30 shadow-2xl scale-[1.02]' 
+              : 'bg-zinc-50 dark:bg-zinc-900/40 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-cyan-500/40'
+            }`}
+          >
+            <div className="absolute top-8 left-1/2 -translate-x-1/2 px-4 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-full">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-500">
+                {showAnswer ? 'Beantwortet' : 'Frage'}
+              </span>
+            </div>
+            
+            <h2 className="text-2xl md:text-4xl font-bold text-center leading-[1.4] text-zinc-800 dark:text-zinc-100">
+              {showAnswer ? cards[currentCardIndex].answer : cards[currentCardIndex].question}
+            </h2>
+
+            {!showAnswer && (
+              <div className="absolute bottom-10 flex items-center gap-2 text-zinc-400 text-sm font-medium opacity-60 group-hover:opacity-100 transition-opacity">
+                Tap to flip <ChevronRight size={16} className="animate-pulse" />
+              </div>
+            )}
+          </div>
+
+          {/* Buttons: Nur sichtbar wenn Antwort da ist */}
+          <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 transition-all duration-300 ${showAnswer ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
+            <button onClick={() => handleRate(0)} className="group flex flex-col items-center p-5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] hover:border-red-500/50 transition-all active:scale-95">
+              <XCircle className="text-zinc-300 group-hover:text-red-500 mb-2 transition-colors" size={28} />
+              <span className="font-bold text-xs uppercase tracking-tighter text-zinc-500 group-hover:text-red-600">No Idea</span>
+            </button>
+            <button onClick={() => handleRate(3)} className="group flex flex-col items-center p-5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] hover:border-amber-500/50 transition-all active:scale-95">
+              <AlertCircle className="text-zinc-300 group-hover:text-amber-500 mb-2 transition-colors" size={28} />
+              <span className="font-bold text-xs uppercase tracking-tighter text-zinc-500 group-hover:text-amber-600">Hard</span>
+            </button>
+            <button onClick={() => handleRate(4)} className="group flex flex-col items-center p-5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] hover:border-blue-500/50 transition-all active:scale-95">
+              <Brain className="text-zinc-300 group-hover:text-blue-500 mb-2 transition-colors" size={28} />
+              <span className="font-bold text-xs uppercase tracking-tighter text-zinc-500 group-hover:text-blue-600">Good</span>
+            </button>
+            <button onClick={() => handleRate(5)} className="group flex flex-col items-center p-5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] hover:border-green-500/50 transition-all active:scale-95">
+              <CheckCircle2 className="text-zinc-300 group-hover:text-green-500 mb-2 transition-colors" size={28} />
+              <span className="font-bold text-xs uppercase tracking-tighter text-zinc-500 group-hover:text-green-600">Easy</span>
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {decks.map((deck) => (
-            <div key={deck.id} className="relative group">
-              <Link href={`/flashcards/${deck.id}`}>
-                <div className="p-6 bg-white rounded-3xl border border-zinc-100 shadow-sm hover:shadow-md hover:border-blue-200 active:scale-[0.98] transition-all h-full flex flex-col justify-between">
-                  
-                  {/* Deck Header */}
-                  <div>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center text-2xl">
-                        📚
-                      </div>
-                      {/* Badge für fällige Karten */}
-                      {deck.due_cards > 0 ? (
-                        <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-bold shadow-sm animate-pulse">
-                          {deck.due_cards} fällig
-                        </span>
-                      ) : (
-                         <span className="bg-green-50 text-green-600 px-3 py-1 rounded-full text-xs font-bold">
-                          Alles erledigt
-                        </span>
-                      )}
-                    </div>
-                    
-                    <h2 className="text-xl font-bold text-zinc-800 line-clamp-1" title={deck.title}>{deck.title}</h2>
-                  </div>
-
-                  {/* Deck Footer / Stats */}
-                  <div className="mt-6 flex items-center gap-4 text-xs font-medium text-zinc-400 border-t border-zinc-50 pt-4">
-                    <div className="flex items-center gap-1">
-                      <span className="text-zinc-800 font-bold">{deck.total_cards}</span> Karten
-                    </div>
-                    {deck.due_cards > 0 && (
-                      <div className="text-blue-600 font-semibold flex items-center gap-1">
-                        Jetzt lernen →
-                      </div>
-                    )}
-                  </div>
-
-                </div>
-              </Link>
-              
-              {/* LÖSCHBUTTON */}
-              <button 
-                onClick={(e) => deleteDeck(deck.id, e)}
-                className="absolute top-4 right-4 bg-white/80 hover:bg-red-50 text-zinc-300 hover:text-red-500 p-2 rounded-xl opacity-100 md:opacity-0 group-hover:opacity-100 transition-all shadow-sm backdrop-blur-sm"
-                title="Deck löschen"
-              >
-                🗑️
-              </button>
-            </div>
-          ))}
+        /* Empty State */
+        <div className="text-center py-20 px-6 bg-white dark:bg-zinc-900 rounded-[3.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm max-w-2xl mx-auto">
+          <div className="w-24 h-24 bg-cyan-50 dark:bg-cyan-900/20 text-cyan-500 rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 shadow-inner">
+            <CheckCircle2 size={48} />
+          </div>
+          <h2 className="text-3xl font-black mb-4">Focus Complete!</h2>
+          <p className="text-zinc-500 dark:text-zinc-400 mb-10 leading-relaxed font-medium">
+            Du hast alle heute fälligen Flashcards gemeistert. Komm morgen wieder, um dein Wissen langfristig zu festigen.
+          </p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-950 px-10 py-4 rounded-2xl font-black text-lg shadow-2xl hover:scale-[1.03] active:scale-95 transition-all"
+          >
+            Stats Refresh
+          </button>
         </div>
       )}
     </div>
