@@ -6,7 +6,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { gamificationService, LevelStats, Achievement } from '@/services/gamification.service';
 import { useAuth } from '@/components/providers/AuthProvider';
 
