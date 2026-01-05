@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 
 // 👇 WICHTIG: Einen hoch für Supabase, einen runter für Auth
-import { supabase } from '../supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import { useAuth } from './providers/AuthProvider';
 
 // ... (Rest bleibt gleich)

@@ -21,7 +21,7 @@ import {
   Moon,
   Sun
 } from 'lucide-react';
-import { supabase } from '@/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { useTheme } from '@/components/providers/ThemeProvider';
 
 const routes = [
@@ -42,27 +42,25 @@ export function Sidebar() {
   const pathname = usePathname();
   const { theme, changeTheme } = useTheme();
 
-  // 🔥 DER FIX FÜR DIE ENDLOSSCHLEIFE
+  /**
+   * Stabile Logout-Funktion
+   * Beendet die Session und bereinigt den Browser-Speicher komplett.
+   */
   const handleLogout = async (e: React.MouseEvent) => {
-    // 1. Stoppt sofort jede Standard-Browser-Aktion (wie Reload oder Submit)
     e.preventDefault();
     e.stopPropagation();
 
     try {
-      // 2. Session bei Supabase beenden
       await supabase.auth.signOut();
       
-      // 3. Browser-Speicher radikal leeren
       if (typeof window !== 'undefined') {
         localStorage.clear();
         sessionStorage.clear();
-        
-        // 4. Harter Redirect (kein Router-Push!), um den State zu resetten
+        // Harter Redirect verhindert State-Leichen
         window.location.href = '/login';
       }
     } catch (error) {
       console.error("Logout Error:", error);
-      // Notfall-Weiterleitung
       window.location.href = '/login';
     }
   };
@@ -75,7 +73,7 @@ export function Sidebar() {
 
   return (
     <>
-      {/* 1. MOBILER BURGER BUTTON */}
+      {/* 1. MOBILER BURGER BUTTON (Sichtbar unter 1024px) */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
@@ -85,7 +83,7 @@ export function Sidebar() {
         </button>
       )}
 
-      {/* 2. OVERLAY FÜR MOBILE */}
+      {/* 2. OVERLAY FÜR MOBILE (Schließt Sidebar bei Klick daneben) */}
       {isOpen && (
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[45] lg:hidden transition-opacity animate-in fade-in"
@@ -99,17 +97,17 @@ export function Sidebar() {
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         
-        {/* Header Bereich */}
+        {/* Logo & Close Button */}
         <div className="p-8 flex items-center justify-between">
           <h1 className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-zinc-100 select-none">
             Electro<span className="text-cyan-500">Brain</span>
           </h1>
-          <button onClick={closeSidebar} className="lg:hidden text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+          <button onClick={closeSidebar} className="lg:hidden text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Navigation Links */}
+        {/* Navigations-Links */}
         <nav className="flex-1 space-y-1 px-4 overflow-y-auto pb-4 scrollbar-hide">
           {routes.map((route) => {
             const isActive = pathname === route.href;
@@ -135,19 +133,18 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Footer Bereich (Toggle & Logout) */}
+        {/* Footer: Theme Switcher & Logout */}
         <div className="p-4 m-4 mt-0 bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl border border-zinc-100 dark:border-zinc-800 space-y-2">
           
-          {/* DARK MODE SWITCHER */}
           <button 
             onClick={toggleDarkMode}
-            className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-white dark:hover:bg-zinc-800 transition-all group border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 shadow-sm hover:shadow-md"
+            className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-white dark:hover:bg-zinc-800 transition-all group border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 shadow-sm"
           >
             <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
               {theme === 'dark' ? (
-                <Sun size={18} className="text-amber-500 fill-amber-500/20" />
+                <Sun size={18} className="text-amber-500" />
               ) : (
-                <Moon size={18} className="text-blue-500 fill-blue-500/20" />
+                <Moon size={18} className="text-blue-500" />
               )}
               <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
             </div>
@@ -162,9 +159,8 @@ export function Sidebar() {
             </div>
           </button>
 
-          {/* LOGOUT BUTTON - Sicher & Stabil */}
           <button
-            type="button" // WICHTIG!
+            type="button"
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all font-bold text-sm group active:scale-95"
           >

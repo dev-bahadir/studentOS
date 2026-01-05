@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import { supabase } from '@/supabaseClient'; 
+import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/providers/AuthProvider';
 import QuotePlayer from '@/components/QuotePlayer';
 import { useTheme } from '@/components/providers/ThemeProvider';
@@ -20,10 +20,11 @@ const DISPLAY_IMAGES = [
 ];
 
 export default function Dashboard() {
-  // WICHTIG: Hier holen wir 'loading' aus der Auth, um nicht zu früh zu urteilen
+  // 1. Auth & Theme Hooks
   const { user, loading: authLoading } = useAuth();
   const { fullName, isInitialLoading: themeLoading } = useTheme();
   
+  // 2. States
   const [stats, setStats] = useState({ decks: 0, cards: 0, notes: 0 });
   const [xpData, setXpData] = useState({ xp: 0, level: 1, progress: 0, nextLevelXp: 500 });
   const [isApproved, setIsApproved] = useState<boolean | null>(null);
@@ -33,8 +34,10 @@ export default function Dashboard() {
   const [jsonInput, setJsonInput] = useState('');
   const [importing, setImporting] = useState(false);
 
+  // 3. Data Fetching
   const fetchAllData = useCallback(async (userId: string) => {
     try {
+      // WICHTIG: Wenn die Tabellen in Supabase noch nicht existieren, crasht das hier!
       const [profileRes, decksRes, cardsRes, notesRes, formulasRes] = await Promise.all([
         supabase.from('profiles').select('xp, is_approved').eq('id', userId).single(),
         supabase.from('decks').select('*', { count: 'exact', head: true }).eq('user_id', userId),
@@ -70,11 +73,11 @@ export default function Dashboard() {
     }
   }, []);
 
+  // 4. Effects
   useEffect(() => {
     if (user?.id) {
       fetchAllData(user.id);
     } else if (!authLoading) {
-      // Wenn Auth fertig ist und kein User da -> Datenladen beenden (damit der Redirect greift)
       setDataLoading(false);
     }
   }, [user?.id, authLoading, fetchAllData]);
@@ -86,6 +89,7 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  // 5. Handlers
   const handleBulkImport = async () => {
     if (!user?.id) return;
     try {
@@ -102,8 +106,8 @@ export default function Dashboard() {
       const { error } = await supabase.from('formulas').insert(formulasToInsert);
       if (error) throw error;
 
-      const totalXpBonus = Math.min(formulasToInsert.length * 2, 50); 
-      await supabase.rpc('increment_xp', { x: totalXpBonus, row_id: user.id });
+      // XP Update via RPC (Stelle sicher, dass die SQL Funktion existiert!)
+      await supabase.rpc('increment_xp', { x: Math.min(formulasToInsert.length * 2, 50), row_id: user.id });
 
       setJsonInput('');
       await fetchAllData(user.id);
@@ -115,45 +119,49 @@ export default function Dashboard() {
     }
   };
 
-  // 1. SYSTEM-SYNC: Warte auf Auth & Theme
+  // --- RENDERING GUARDS ---
+
+  // 1. Wenn das System noch initialisiert (Auth oder Theme lädt)
   if (authLoading || themeLoading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
-        <motion.div 
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-          className="h-10 w-10 border-4 border-cyan-500 border-t-transparent rounded-full"
-        />
-        <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">
-          Neural Link Syncing...
-        </p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-white">
+        <div className="h-12 w-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-6" />
+        <h2 className="text-xl font-black tracking-widest uppercase animate-pulse">Initializing Interface...</h2>
       </div>
     );
   }
 
-  // 2. REDIRECT: Wenn System fertig, aber kein User da
+  // 2. Wenn das System fertig ist, aber KEIN User gefunden wurde
   if (!user) {
-    if (typeof window !== 'undefined') {
-       // Hier leiten wir hart weiter, statt nur einen Link anzuzeigen
-       window.location.href = '/login'; 
-    }
-    return null; 
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 p-10 text-center">
+        <Lock className="text-cyan-500 mb-6" size={48} />
+        <h2 className="text-2xl font-bold text-white mb-4">Neural Link Offline</h2>
+        <p className="text-zinc-400 mb-8">Deine Sitzung konnte nicht validiert werden.</p>
+        <Link href="/login" className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase hover:bg-cyan-500 transition-colors">
+          Zum Login
+        </Link>
+      </div>
+    );
   }
 
-  // 3. APPROVAL: Warteliste
+  // 3. Wenn User da ist, aber noch auf Freischaltung wartet
   if (isApproved === false) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center p-6 text-center">
-        <div className="max-w-md bg-panel p-10 rounded-[2.5rem] shadow-xl border border-zinc-200 dark:border-zinc-800">
-          <Lock className="mx-auto text-cyan-500 mb-6" size={48} />
-          <h2 className="text-3xl font-black text-ink mb-4 tracking-tight">Warteliste</h2>
-          <p className="text-zinc-500 dark:text-zinc-400 mb-8 leading-relaxed">Dein Account wird gerade manuell freigeschaltet.</p>
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-6 text-center">
+        <div className="max-w-md bg-zinc-900 p-10 rounded-[3rem] border border-zinc-800 shadow-2xl">
+          <Activity className="mx-auto text-cyan-500 mb-6 animate-pulse" size={48} />
+          <h2 className="text-3xl font-black text-white mb-4 tracking-tight uppercase">Warteliste</h2>
+          <p className="text-zinc-500 leading-relaxed mb-8">
+            Dein Zugang zum ElectroBrain wird gerade vom Administrator validiert. Bitte hab einen Moment Geduld.
+          </p>
+          <button onClick={() => window.location.reload()} className="text-cyan-500 font-bold text-sm uppercase tracking-widest">Status prüfen</button>
         </div>
       </div>
     );
   }
 
-  // 4. DASHBOARD CONTENT
+  // 4. DAS EIGENTLICHE DASHBOARD
   return (
     <div className="min-h-screen bg-transparent p-4 md:p-10 pb-32 transition-colors duration-500">
       <div className="max-w-5xl mx-auto">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../../../supabaseClient'; // Pfad ggf. anpassen
+import { supabase } from '../../../lib/supabaseClient'; // Pfad ggf. anpassen
 import { useAuth } from '@/components/providers/AuthProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 

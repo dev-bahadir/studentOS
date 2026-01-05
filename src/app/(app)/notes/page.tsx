@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../../supabaseClient'; 
+import { supabase } from '../../../lib/supabaseClient'; 
 import { useAuth } from '@/components/providers/AuthProvider';
 import Editor from '../../../components/Editor';
 import { Search, Trash2, PenLine, Tag } from 'lucide-react'; // Optional: Schöne Icons für bessere UX
