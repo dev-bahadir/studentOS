@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -40,30 +40,29 @@ const routes = [
 export function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
   const { theme, changeTheme } = useTheme();
 
-const handleLogout = async () => {
+  // 🔥 DER FIX FÜR DIE ENDLOSSCHLEIFE
+  const handleLogout = async (e: React.MouseEvent) => {
+    // 1. Stoppt sofort jede Standard-Browser-Aktion (wie Reload oder Submit)
+    e.preventDefault();
+    e.stopPropagation();
+
     try {
-      // 1. Supabase Session beenden
+      // 2. Session bei Supabase beenden
       await supabase.auth.signOut();
       
-      // 2. Browser-Speicher komplett leeren
-      localStorage.clear();
-      sessionStorage.clear(); // Wichtig für iOS
-
-      // 3. Der iOS-Trick: 
-      // Wir geben Safari 100ms Zeit, die Cookies wirklich zu löschen,
-      // bevor wir die Seite wechseln.
-      setTimeout(() => {
-        // window.location.replace ist besser als href oder router.push,
-        // weil es den Eintrag im Browser-Verlauf ÜBERSCHREIBT.
-        // Das verhindert, dass man per "Wisch zurück" wieder im Dashboard landet.
-        window.location.replace('/login');
-      }, 100);
-
+      // 3. Browser-Speicher radikal leeren
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // 4. Harter Redirect (kein Router-Push!), um den State zu resetten
+        window.location.href = '/login';
+      }
     } catch (error) {
-      // Fallback, falls was schief geht
+      console.error("Logout Error:", error);
+      // Notfall-Weiterleitung
       window.location.href = '/login';
     }
   };
@@ -76,42 +75,42 @@ const handleLogout = async () => {
 
   return (
     <>
-      {/* 1. MOBILER BURGER BUTTON (Zinc-Style) */}
+      {/* 1. MOBILER BURGER BUTTON */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="lg:hidden fixed top-4 left-4 z-[60] p-3 bg-panel border border-zinc-200 dark:border-zinc-800 rounded-2xl text-zinc-900 dark:text-zinc-100 shadow-xl"
+          className="lg:hidden fixed top-4 left-4 z-[60] p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-zinc-900 dark:text-zinc-100 shadow-xl active:scale-95 transition-transform"
         >
           <Menu className="w-6 h-6" />
         </button>
       )}
 
-      {/* 2. OVERLAY */}
+      {/* 2. OVERLAY FÜR MOBILE */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/40 backdrop-blur-md z-[45] lg:hidden transition-opacity"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[45] lg:hidden transition-opacity animate-in fade-in"
           onClick={closeSidebar}
         />
       )}
 
       {/* 3. SIDEBAR CONTAINER */}
       <aside className={cn(
-        "fixed left-0 top-0 z-50 h-[100dvh] w-72 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-900 flex flex-col transition-all duration-300 ease-in-out",
-        isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
+        "fixed left-0 top-0 z-50 h-[100dvh] w-72 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-900 flex flex-col transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none",
+        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         
         {/* Header Bereich */}
         <div className="p-8 flex items-center justify-between">
-          <h1 className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-zinc-100">
+          <h1 className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-zinc-100 select-none">
             Electro<span className="text-cyan-500">Brain</span>
           </h1>
-          <button onClick={closeSidebar} className="lg:hidden text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+          <button onClick={closeSidebar} className="lg:hidden text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-4 overflow-y-auto custom-scrollbar pb-10">
+        {/* Navigation Links */}
+        <nav className="flex-1 space-y-1 px-4 overflow-y-auto pb-4 scrollbar-hide">
           {routes.map((route) => {
             const isActive = pathname === route.href;
             return (
@@ -120,7 +119,7 @@ const handleLogout = async () => {
                 href={route.href}
                 onClick={closeSidebar}
                 className={cn(
-                  'flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-sm font-bold group',
+                  'flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-sm font-bold group select-none',
                   isActive
                     ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 shadow-[inset_0_0_0_1px_rgba(6,182,212,0.2)]'
                     : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900'
@@ -137,12 +136,12 @@ const handleLogout = async () => {
         </nav>
 
         {/* Footer Bereich (Toggle & Logout) */}
-        <div className="p-4 border-t border-zinc-100 dark:border-zinc-900 space-y-2">
+        <div className="p-4 m-4 mt-0 bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl border border-zinc-100 dark:border-zinc-800 space-y-2">
           
           {/* DARK MODE SWITCHER */}
           <button 
             onClick={toggleDarkMode}
-            className="w-full flex items-center justify-between p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all group border border-zinc-200 dark:border-zinc-800"
+            className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-white dark:hover:bg-zinc-800 transition-all group border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 shadow-sm hover:shadow-md"
           >
             <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
               {theme === 'dark' ? (
@@ -157,16 +156,17 @@ const handleLogout = async () => {
               theme === 'dark' ? "bg-cyan-500" : "bg-zinc-300 dark:bg-zinc-700"
             )}>
               <div className={cn(
-                "w-3 h-3 bg-panel rounded-full transition-all shadow-sm",
+                "w-3 h-3 bg-white rounded-full transition-all shadow-sm",
                 theme === 'dark' ? "translate-x-5" : "translate-x-0"
               )} />
             </div>
           </button>
 
-          {/* LOGOUT */}
+          {/* LOGOUT BUTTON - Sicher & Stabil */}
           <button
+            type="button" // WICHTIG!
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all font-bold text-sm group"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all font-bold text-sm group active:scale-95"
           >
             <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             Logout
