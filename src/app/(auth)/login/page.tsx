@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase'; // Nutze den Standard-Client
+import { supabase } from '@/supabaseClient'; // ✅ RICHTIG
 import { Loader2, AlertCircle, CheckCircle2, KeyRound, UserPlus, LogIn, Github } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
+  
 
   // Login States
   const [email, setEmail] = useState('');
