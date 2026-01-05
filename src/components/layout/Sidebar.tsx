@@ -21,7 +21,7 @@ import { createClient } from '@/lib/supabase'
 const routes = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { label: 'Second Brain', icon: BrainCircuit, href: '/notes' }, // Prüfe, ob dein Pfad /notes oder /dashboard/notes ist
-  { label: 'Tasks', icon: CheckSquare, href: '/dashboard/tasks' }, // Oder /tasks
+  { label: 'Tasks', icon: CheckSquare, href: '/tasks' }, // Oder /tasks
   { label: 'Study', icon: BookOpen, href: '/flashcards' },         // Oder /dashboard/study - passe das an deine Ordnerstruktur an!
   
   // --- NEUE FEATURES ---
