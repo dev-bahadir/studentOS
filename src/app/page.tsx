@@ -21,7 +21,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-900 to-purple-800 text-white p-4">
-      <div className="text-center space-y-6 max-w-2xl">
+      <div className="text-center space-y-6 Hx-w-2xl">
         <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-4">
           ElectroBrain <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400">OS</span>
         </h1>

@@ -1,74 +1,73 @@
 @import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* --- THEME DEFINITIONEN --- */
-
-/* 1. MODERN (Standard - Blau/Clean) */
-.theme-modern {
-  --bg-canvas: #f9fafb;     /* Heller Hintergrund */
-  --bg-panel: #ffffff;      /* Weiße Karten */
-  --text-ink: #1f2937;      /* Dunkler Text */
-  --color-primary: #2563eb; /* Blau */
-  --color-accent: #7c3aed;  /* Lila */
-}
-
-/* 2. DARK MODE (Hacker Style) */
-.theme-dark {
-  --bg-canvas: #0f172a;     /* Tiefes Dunkelblau */
-  --bg-panel: #1e293b;      /* Etwas helleres Dunkelblau */
-  --text-ink: #e2e8f0;      /* Helles Grau */
-  --color-primary: #38bdf8; /* Neon Blau */
-  --color-accent: #f472b6;  /* Neon Pink */
-}
-
-/* 3. PASTEL (Aesthetic / Chill) */
-.theme-pastel {
-  --bg-canvas: #fdf2f8;     /* Ganz helles Rosa */
+/* --- 1. GRUNDKONFIGURATION --- */
+:root {
+  /* Standardmäßig auf Modern-Light eingestellt */
+  --bg-canvas: #f9fafb;
   --bg-panel: #ffffff;
-  --text-ink: #4a4a4a;      /* Sanftes Grau */
-  --color-primary: #f472b6; /* Sanftes Pink */
-  --color-accent: #34d399;  /* Mintgrün */
+  --text-ink: #1f2937;
+  --color-primary: #06b6d4; /* Dein Cyan */
+  --color-accent: #7c3aed;
 }
 
-/* --- ANWENDUNG DER VARIABLEN --- */
-/* Wir nutzen Tailwind Klassen, mappen sie aber auf unsere Variablen */
-@layer base {
-  body {
-    @apply bg-[var(--bg-canvas)] text-[var(--text-ink)];
+/* Automatischer Dark Mode (System-Ebene), falls kein Theme gesetzt ist */
+@media (prefers-color-scheme: dark) {
+  :root:not([class*="theme-"]) {
+    --bg-canvas: #09090b;
+    --bg-panel: #18181b;
+    --text-ink: #fafafa;
   }
 }
 
-/* Hilfsklassen für unsere Komponenten */
+/* --- 2. DEINE THEME DEFINITIONEN --- */
+
+/* MODERN (Dein Standard) */
+.theme-modern {
+  --bg-canvas: #f9fafb;
+  --bg-panel: #ffffff;
+  --text-ink: #18181b;
+  --color-primary: #06b6d4;
+}
+
+/* DARK (Manuell gewählt) */
+.theme-dark {
+  --bg-canvas: #09090b; /* Sehr dunkles Zinc */
+  --bg-panel: #18181b;   /* Etwas helleres Zinc für Karten */
+  --text-ink: #fafafa;   /* Fast Weiß für perfekte Lesbarkeit */
+  --color-primary: #22d3ee; /* Leuchtendes Cyan */
+  --color-accent: #f472b6;
+}
+
+/* PASTEL */
+.theme-pastel {
+  --bg-canvas: #fdf2f8;
+  --bg-panel: #ffffff;
+  --text-ink: #3f3f46;
+  --color-primary: #f472b6;
+  --color-accent: #34d399;
+}
+
+/* --- 3. ANWENDUNG (Der wichtigste Teil) --- */
+
+@layer base {
+  * {
+    @apply border-zinc-200 dark:border-zinc-800;
+  }
+  
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--text-ink);
+    /* Sorgt für weiche Farbübergänge beim Wechsel */
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+/* Hilfsklassen, die du in deinen Komponenten nutzt */
 .bg-canvas { background-color: var(--bg-canvas); }
 .bg-panel { background-color: var(--bg-panel); }
 .text-ink { color: var(--text-ink); }
-.text-primary { color: var(--color-primary); }
 .bg-primary { background-color: var(--color-primary); }
+.text-primary { color: var(--color-primary); }
