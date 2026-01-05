@@ -33,15 +33,15 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    // bg-canvas statt bg-gray-50 für dein dunkles Design
+    // bg-canvas statt bg-canvas für dein dunkles Design
     <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
-      {/* bg-panel statt bg-white */}
+      {/* bg-panel statt bg-panel */}
       <div className="max-w-md w-full bg-panel rounded-2xl shadow-xl p-8 border border-gray-100/10">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600">
             Neues Passwort
           </h1>
-          <p className="text-gray-500 mt-2">Wähle ein sicheres Passwort für dein ElectroBrain OS</p>
+          <p className="text-zinc-500 mt-2">Wähle ein sicheres Passwort für dein ElectroBrain OS</p>
         </div>
 
         {message && (

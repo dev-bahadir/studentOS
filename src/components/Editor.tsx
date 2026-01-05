@@ -35,7 +35,7 @@ export default function Editor({ content, onChange }: { content: string, onChang
   }
 
   return (
-    <div className="border border-gray-300 rounded-xl bg-white shadow-sm overflow-hidden">
+    <div className="border border-gray-300 rounded-xl bg-panel shadow-sm overflow-hidden">
       <MenuBar editor={editor} />
       <EditorContent editor={editor} />
     </div>

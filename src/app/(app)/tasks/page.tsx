@@ -171,7 +171,7 @@ export default function TaskBoard() {
 
   return (
     <div className="p-4 md:p-10 min-h-screen max-w-7xl mx-auto pb-32 bg-transparent text-zinc-900 dark:text-zinc-100">
-      <h1 className="text-4xl font-black mb-8 text-zinc-900 dark:text-white tracking-tight">
+      <h1 className="text-4xl font-black mb-8 text-zinc-900 dark:text-zinc-100 tracking-tight">
         Projekt Board 🚀
       </h1>
 
@@ -181,7 +181,7 @@ export default function TaskBoard() {
           onChange={(e) => setNewTask(e.target.value)}
           placeholder="Was steht an?"
           // Großes Input-Feld mit klarem Text
-          className="flex-1 p-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 outline-none text-zinc-900 dark:text-white placeholder:text-zinc-400 text-lg font-medium"
+          className="flex-1 p-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 text-lg font-medium"
         />
         <button type="submit" className="bg-blue-600 text-white px-8 rounded-2xl font-bold text-lg hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-500/30">
           Add

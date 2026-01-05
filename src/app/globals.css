@@ -1,44 +1,40 @@
 @import "tailwindcss";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
-/* --- 1. GRUNDKONFIGURATION --- */
+/* --- 1. GRUNDKONFIGURATION & FIXES --- */
 :root {
-  /* Standardmäßig auf Modern-Light eingestellt */
+  /* Standard-Variablen für Next.js/Tailwind Utility-Kompatibilität */
+  --background: #f9fafb;
+  --foreground: #111827;
+  
+  /* Deine System-Variablen */
   --bg-canvas: #f9fafb;
   --bg-panel: #ffffff;
-  --text-ink: #1f2937;
-  --color-primary: #06b6d4; /* Dein Cyan */
+  --text-ink: #111827;
+  --color-primary: #06b6d4;
   --color-accent: #7c3aed;
 }
 
-/* Automatischer Dark Mode (System-Ebene), falls kein Theme gesetzt ist */
-@media (prefers-color-scheme: dark) {
-  :root:not([class*="theme-"]) {
-    --bg-canvas: #09090b;
-    --bg-panel: #18181b;
-    --text-ink: #fafafa;
-  }
-}
+/* --- 2. THEME DEFINITIONEN --- */
 
-/* --- 2. DEINE THEME DEFINITIONEN --- */
-
-/* MODERN (Dein Standard) */
+/* MODERN (Light Mode) */
 .theme-modern {
   --bg-canvas: #f9fafb;
   --bg-panel: #ffffff;
-  --text-ink: #18181b;
+  --text-ink: #111827; /* Dunkles Grau/Schwarz für Lesbarkeit */
   --color-primary: #06b6d4;
 }
 
-/* DARK (Manuell gewählt) */
-.theme-dark {
-  --bg-canvas: #09090b; /* Sehr dunkles Zinc */
-  --bg-panel: #18181b;   /* Etwas helleres Zinc für Karten */
-  --text-ink: #fafafa;   /* Fast Weiß für perfekte Lesbarkeit */
-  --color-primary: #22d3ee; /* Leuchtendes Cyan */
+/* DARK (Deep Zinc) */
+.theme-dark, .dark {
+  --bg-canvas: #09090b; 
+  --bg-panel: #18181b;   
+  --text-ink: #f9fafb;   /* Fast Weiß für maximalen Kontrast */
+  --color-primary: #22d3ee; 
   --color-accent: #f472b6;
+  
+  /* Next.js Overrides */
+  --background: #09090b;
+  --foreground: #f9fafb;
 }
 
 /* PASTEL */
@@ -47,27 +43,50 @@
   --bg-panel: #ffffff;
   --text-ink: #3f3f46;
   --color-primary: #f472b6;
-  --color-accent: #34d399;
 }
 
-/* --- 3. ANWENDUNG (Der wichtigste Teil) --- */
+/* --- 3. BASE STYLES (Zwingt den Browser zur Lesbarkeit) --- */
 
 @layer base {
   * {
-    @apply border-zinc-200 dark:border-zinc-800;
+    /* Nutzt Variablen für Rahmen, damit diese im Dark Mode mitwechseln */
+    border-color: rgba(var(--text-ink), 0.1);
   }
   
+  html {
+    /* Verhindert "Scrollbar-Glitches" beim Theme-Wechsel */
+    color-scheme: light dark;
+  }
+
   body {
-    background-color: var(--bg-canvas);
-    color: var(--text-ink);
-    /* Sorgt für weiche Farbübergänge beim Wechsel */
+    background-color: var(--bg-canvas) !important;
+    color: var(--text-ink) !important;
+    min-height: 100vh;
+    font-feature-settings: "overline" 0;
+    /* Glättet die Schrift am PC (Windows/Chrome) */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Sicherstellen, dass Standard-Überschriften immer die richtige Farbe haben */
+  h1, h2, h3, h4, h5, h6, p, span, label {
+    color: var(--text-ink);
   }
 }
 
-/* Hilfsklassen, die du in deinen Komponenten nutzt */
-.bg-canvas { background-color: var(--bg-canvas); }
-.bg-panel { background-color: var(--bg-panel); }
-.text-ink { color: var(--text-ink); }
-.bg-primary { background-color: var(--color-primary); }
-.text-primary { color: var(--color-primary); }
+/* --- 4. UTILITY MAPPING --- */
+
+.bg-canvas { background-color: var(--bg-canvas) !important; }
+.bg-panel { background-color: var(--bg-panel) !important; }
+.text-ink { color: var(--text-ink) !important; }
+.bg-primary { background-color: var(--color-primary) !important; }
+.text-primary { color: var(--color-primary) !important; }
+
+/* Spezial-Klasse für Karten, um sie im Dark Mode leicht abzuheben */
+.card-shadow {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+.dark .card-shadow {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+}

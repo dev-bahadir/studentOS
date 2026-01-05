@@ -114,7 +114,7 @@ export default function FormulasPage() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-black text-ink">Wissens-Tresor 🔐</h1>
-          <p className="text-gray-500 text-sm mt-1">{formulas.length} wissenschaftliche Einträge</p>
+          <p className="text-zinc-500 text-sm mt-1">{formulas.length} wissenschaftliche Einträge</p>
         </div>
         <button 
           onClick={() => setIsImporting(!isImporting)}
@@ -173,7 +173,7 @@ export default function FormulasPage() {
             className={`px-5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
               activeCategory === cat 
               ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105' 
-              : 'bg-panel text-gray-500 border border-gray-100/10 hover:border-primary/40'
+              : 'bg-panel text-zinc-500 border border-gray-100/10 hover:border-primary/40'
             }`}
           >
             {cat}
@@ -196,9 +196,9 @@ export default function FormulasPage() {
       {/* AKKORDEON LISTE */}
       <div className="space-y-4">
         {loading ? (
-          <div className="text-center py-20 animate-pulse text-gray-500">Daten werden synchronisiert...</div>
+          <div className="text-center py-20 animate-pulse text-zinc-500">Daten werden synchronisiert...</div>
         ) : filteredFormulas.length === 0 ? (
-          <div className="text-center py-20 bg-panel rounded-3xl border border-dashed border-gray-100/10 text-gray-500">
+          <div className="text-center py-20 bg-panel rounded-3xl border border-dashed border-gray-100/10 text-zinc-500">
             Keine Formeln gefunden.
           </div>
         ) : (
@@ -244,7 +244,7 @@ export default function FormulasPage() {
                       </div>
                       
                       <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold text-gray-500 uppercase">Kontext & Parameter</h4>
+                        <h4 className="text-[10px] font-bold text-zinc-500 uppercase">Kontext & Parameter</h4>
                         <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
                           {f.context && f.context.includes(':') ? f.context.split(':').slice(1).join(':').trim() : f.context}
                         </p>

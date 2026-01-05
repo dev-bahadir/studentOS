@@ -104,7 +104,7 @@ export default function NotesPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto min-h-screen pb-32 text-zinc-900 dark:text-zinc-100">
-      <h1 className="text-4xl font-black mb-8 text-zinc-900 dark:text-white tracking-tight">
+      <h1 className="text-4xl font-black mb-8 text-zinc-900 dark:text-zinc-100 tracking-tight">
         Mein Second Brain 🧠
       </h1>
 
@@ -155,7 +155,7 @@ export default function NotesPage() {
           placeholder="Notizen durchsuchen..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full p-4 pl-12 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm focus:ring-2 focus:ring-cyan-500 outline-none text-zinc-900 dark:text-white placeholder:text-zinc-400 transition-all"
+          className="w-full p-4 pl-12 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm focus:ring-2 focus:ring-cyan-500 outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 transition-all"
         />
         <Search className="absolute left-4 top-4 text-zinc-400 group-focus-within:text-cyan-500 transition-colors" size={20} />
       </div>

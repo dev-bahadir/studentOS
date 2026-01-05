@@ -150,7 +150,7 @@ export default function QuotePlayer() {
       <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 rounded-2xl shadow-lg text-white text-center mb-8">
         <h3 className="font-bold text-xl mb-2">Dein Zitat-Player 🎧</h3>
         <p className="mb-4 text-sm opacity-90">Noch keine Bücher geladen.</p>
-        <button onClick={() => setIsImporting(true)} className="bg-white text-indigo-600 px-4 py-2 rounded-lg font-bold hover:bg-gray-100 transition">
+        <button onClick={() => setIsImporting(true)} className="bg-panel text-indigo-600 px-4 py-2 rounded-lg font-bold hover:bg-gray-100 transition">
           + Buch importieren
         </button>
       </div>
@@ -161,22 +161,22 @@ export default function QuotePlayer() {
     <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl shadow-lg text-white mb-8 transition-all duration-500 overflow-hidden relative group">
       
       {isImporting ? (
-        <div className="p-6 bg-white text-gray-800">
+        <div className="p-6 bg-panel text-gray-800">
           <h3 className="font-bold mb-4">Buch importieren 📚</h3>
           <input 
-            className="w-full p-2 border rounded mb-2 bg-gray-50" 
+            className="w-full p-2 border rounded mb-2 bg-canvas" 
             placeholder="Buchtitel (Optional)"
             value={bookTitle}
             onChange={e => setBookTitle(e.target.value)}
           />
           <textarea 
-            className="w-full p-2 border rounded mb-4 h-32 bg-gray-50 text-sm"
+            className="w-full p-2 border rounded mb-4 h-32 bg-canvas text-sm"
             placeholder="Füge hier deinen Text ein (z.B. Koranverse oder Buchzitate)."
             value={importText}
             onChange={e => setImportText(e.target.value)}
           />
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setIsImporting(false)} className="text-gray-500 px-4 py-2">Abbrechen</button>
+            <button onClick={() => setIsImporting(false)} className="text-zinc-500 px-4 py-2">Abbrechen</button>
             <button onClick={handleImport} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Zitate generieren</button>
           </div>
         </div>
@@ -192,7 +192,7 @@ export default function QuotePlayer() {
               title="Intervall (Sek)"
             />
             <span className="text-xs pt-1">Sek.</span>
-            <button onClick={() => setIsImporting(true)} className="bg-white/20 hover:bg-white/40 p-1 rounded text-xs" title="Import">➕</button>
+            <button onClick={() => setIsImporting(true)} className="bg-panel/20 hover:bg-panel/40 p-1 rounded text-xs" title="Import">➕</button>
             <button onClick={deleteCurrent} className="bg-red-500/20 hover:bg-red-500 p-1 rounded text-xs" title="Löschen">🗑️</button>
           </div>
 
@@ -205,9 +205,9 @@ export default function QuotePlayer() {
             </p>
           </div>
 
-          <div className="absolute bottom-0 left-0 h-1 bg-white/30 w-full">
+          <div className="absolute bottom-0 left-0 h-1 bg-panel/30 w-full">
             <div 
-                className="h-full bg-white" 
+                className="h-full bg-panel" 
                 style={{ 
                     width: '100%', 
                     animation: `shrink ${intervalSec}s linear infinite` 

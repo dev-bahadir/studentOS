@@ -7,14 +7,14 @@ export default function AppLayout({
 }) {
   return (
     // 'h-[100dvh]' fixt das Problem mit der Safari-Adressleiste auf iOS
-    <div className="flex h-[100dvh] w-full bg-gray-50 overflow-hidden">
+    <div className="flex h-[100dvh] w-full bg-canvas overflow-hidden">
       
       {/* SIDEBAR CONTAINER (Desktop & iPad Landscape)
         - 'hidden lg:flex': Versteckt die Sidebar auf iPad Portrait und Handys.
           Dort nutzen wir das mobile Menü (Overlay), das in der <Sidebar /> Komponente steckt.
         - 'fixed': Damit sie beim Scrollen stehen bleibt.
       */}
-      <aside className="hidden lg:flex w-64 flex-col fixed inset-y-0 z-50 border-r border-gray-200 bg-white">
+      <aside className="hidden lg:flex w-64 flex-col fixed inset-y-0 z-50 border-r border-gray-200 bg-panel">
         <Sidebar />
       </aside>
 

@@ -110,7 +110,7 @@ export default function LoginPage() {
            <div className="w-12 h-12 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-xl flex items-center justify-center mx-auto mb-4 text-2xl">
             🧠
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">ElectroBrain OS</h1>
+          <h1 className="text-2xl font-bold text-ink dark:text-zinc-100">ElectroBrain OS</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-2">Willkommen zurück</p>
         </div>
 
@@ -134,7 +134,7 @@ export default function LoginPage() {
               type="email"
               required
               suppressHydrationWarning={true}
-              className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none transition text-gray-900 dark:text-white placeholder-gray-400"
+              className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none transition text-ink dark:text-zinc-100 placeholder-gray-400"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="deine@email.com"
@@ -146,7 +146,7 @@ export default function LoginPage() {
               type="password"
               required
               suppressHydrationWarning={true}
-              className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none transition text-gray-900 dark:text-white placeholder-gray-400"
+              className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none transition text-ink dark:text-zinc-100 placeholder-gray-400"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -167,7 +167,7 @@ export default function LoginPage() {
              <button
                 onClick={handleSocialLogin}
                 type="button"
-                className="flex items-center justify-center gap-2 w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition text-gray-700 dark:text-white font-medium text-sm"
+                className="flex items-center justify-center gap-2 w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition text-gray-700 dark:text-zinc-100 font-medium text-sm"
               >
                 <Github size={18} /> GitHub Login
              </button>
@@ -203,7 +203,7 @@ export default function LoginPage() {
                 placeholder="E-Mail für Reset eingeben"
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
-                className="w-full p-2 text-sm bg-white dark:bg-gray-900 border border-cyan-200 dark:border-cyan-700 rounded-lg outline-none mb-2 text-gray-900 dark:text-white"
+                className="w-full p-2 text-sm bg-white dark:bg-gray-900 border border-cyan-200 dark:border-cyan-700 rounded-lg outline-none mb-2 text-ink dark:text-zinc-100"
               />
               {resetMessage && <p className="text-[11px] text-cyan-600 dark:text-cyan-400 font-medium mb-2">{resetMessage}</p>}
               <div className="flex gap-2">
@@ -215,7 +215,7 @@ export default function LoginPage() {
                 </button>
                 <button 
                   onClick={() => setShowResetField(false)}
-                  className="px-3 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  className="px-3 text-xs text-zinc-500 hover:text-gray-700 dark:hover:text-gray-300"
                 >
                   Abbrechen
                 </button>

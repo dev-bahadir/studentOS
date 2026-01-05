@@ -1,21 +1,39 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../../../supabaseClient';
+import { supabase } from '@/supabaseClient';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Target, 
+  Plus, 
+  Trash2, 
+  Calendar, 
+  Mic, 
+  FileText, 
+  AlertTriangle,
+  Clock,
+  ChevronRight
+} from 'lucide-react';
+
+type Exam = {
+  id: string;
+  title: string;
+  date: string;
+  type: 'Klausur' | 'Referat' | 'Abgabe' | 'Test';
+};
 
 export default function RadarPage() {
   const { user } = useAuth();
   
-  const [exams, setExams] = useState<any[]>([]);
+  const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Form
+  // Form State
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
-  const [type, setType] = useState('Klausur');
+  const [type, setType] = useState<Exam['type']>('Klausur');
 
   useEffect(() => {
     if (user) fetchExams();
@@ -26,9 +44,9 @@ export default function RadarPage() {
       .from('exams')
       .select('*')
       .eq('user_id', user?.id)
-      .order('date', { ascending: true }); // Nächste Klausur zuerst
+      .order('date', { ascending: true });
     
-    if (data) setExams(data);
+    if (data) setExams(data as Exam[]);
     setLoading(false);
   };
 
@@ -37,26 +55,26 @@ export default function RadarPage() {
 
     const { error } = await supabase.from('exams').insert([{
       user_id: user?.id,
-      title,
+      title: title.trim(),
       date,
       type
     }]);
 
     if (!error) {
-      setTitle(''); setDate(''); setIsCreating(false);
+      setTitle(''); 
+      setDate(''); 
+      setIsCreating(false);
       fetchExams();
-      // Kleiner XP Boost für Planung
+      // XP Boost für Planung
       await supabase.rpc('increment_xp', { x: 5, row_id: user?.id });
     }
   };
 
   const deleteExam = async (id: string) => {
-    if (!confirm('Termin entfernen?')) return;
     const { error } = await supabase.from('exams').delete().eq('id', id);
     if (!error) setExams(prev => prev.filter(e => e.id !== id));
   };
 
-  // Hilfsfunktion: Tage berechnen
   const getDaysLeft = (targetDate: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -65,29 +83,37 @@ export default function RadarPage() {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  const getUrgencyColor = (days: number) => {
-    if (days < 0) return 'bg-gray-100 border-gray-200 text-gray-600 dark:text-gray-400'; // Vorbei
-    if (days <= 3) return 'bg-red-50 border-red-200 text-red-700 animate-pulse'; // ALARM
-    if (days <= 7) return 'bg-orange-50 border-orange-200 text-orange-700'; // Bald
-    return 'bg-green-50 border-green-200 text-green-700'; // Entspannt
+  const getUrgencyStyles = (days: number) => {
+    if (days < 0) return 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-400 opacity-60'; 
+    if (days <= 3) return 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/30 text-red-600 animate-pulse'; 
+    if (days <= 7) return 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/30 text-amber-600'; 
+    return 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100'; 
+  };
+
+  const getIcon = (type: string) => {
+    switch (type) {
+      case 'Referat': return <Mic size={24} />;
+      case 'Abgabe': return <FileText size={24} />;
+      default: return <Calendar size={24} />;
+    }
   };
 
   return (
-    <div className="p-4 md:p-10 max-w-5xl mx-auto min-h-screen pb-40">
+    <div className="p-4 md:p-10 max-w-5xl mx-auto min-h-screen pb-40 text-zinc-900 dark:text-zinc-100">
       
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
         <div>
-          <h1 className="text-3xl font-black text-gray-800 flex items-center gap-2">
-            <span className="text-red-500">🎯</span> Klausur Radar
+          <h1 className="text-4xl font-black tracking-tight flex items-center gap-3">
+            <Target className="text-red-500" size={36} /> Klausur Radar
           </h1>
-          <p className="text-gray-500 text-sm mt-1">Deine nächsten Deadlines im Blick</p>
+          <p className="text-zinc-500 font-medium mt-1">Behalte deine Deadlines im Blick</p>
         </div>
         <button 
           onClick={() => setIsCreating(!isCreating)}
-          className="bg-gray-900 text-white px-5 py-2 rounded-2xl font-bold shadow-lg shadow-gray-900/20 active:scale-95 transition"
+          className="w-full md:w-auto bg-zinc-900 dark:bg-panel text-white dark:text-ink px-8 py-4 rounded-2xl font-black shadow-xl hover:scale-[1.03] active:scale-95 transition-all flex items-center justify-center gap-2"
         >
-          {isCreating ? 'Abbrechen' : '+ Neuer Termin'}
+          {isCreating ? 'Abbrechen' : <><Plus size={20} /> Neuer Termin</>}
         </button>
       </div>
 
@@ -95,35 +121,47 @@ export default function RadarPage() {
       <AnimatePresence>
         {isCreating && (
           <motion.div 
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden mb-8"
+            initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+            animate={{ height: 'auto', opacity: 1, marginBottom: 32 }}
+            exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+            className="overflow-hidden"
           >
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <input 
-                  value={title} onChange={e => setTitle(e.target.value)}
-                  placeholder="Fach / Thema (z.B. 'Mathe II')"
-                  className="p-3 bg-gray-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <input 
-                  type="date"
-                  value={date} onChange={e => setDate(e.target.value)}
-                  className="p-3 bg-gray-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <select 
-                  value={type} onChange={e => setType(e.target.value)}
-                  className="p-3 bg-gray-50 rounded-xl border-none outline-none cursor-pointer"
-                >
-                  <option value="Klausur">Klausur</option>
-                  <option value="Referat">Referat</option>
-                  <option value="Abgabe">Abgabe</option>
-                  <option value="Test">Test</option>
-                </select>
+            <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] shadow-sm border border-zinc-200 dark:border-zinc-800">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Titel</label>
+                  <input 
+                    value={title} onChange={e => setTitle(e.target.value)}
+                    placeholder="z.B. Analysis II"
+                    className="w-full p-4 bg-zinc-50 dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:ring-2 focus:ring-red-500/50 transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Datum</label>
+                  <input 
+                    type="date"
+                    value={date} onChange={e => setDate(e.target.value)}
+                    className="w-full p-4 bg-zinc-50 dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none focus:ring-2 focus:ring-red-500/50 transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Typ</label>
+                  <select 
+                    value={type} onChange={e => setType(e.target.value as any)}
+                    className="w-full p-4 bg-zinc-50 dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 outline-none cursor-pointer appearance-none"
+                  >
+                    <option value="Klausur">Klausur</option>
+                    <option value="Referat">Referat</option>
+                    <option value="Abgabe">Abgabe</option>
+                    <option value="Test">Test</option>
+                  </select>
+                </div>
               </div>
-              <button onClick={addExam} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition">
-                Termin eintragen
+              <button 
+                onClick={addExam} 
+                className="w-full bg-red-600 hover:bg-red-700 text-white py-5 rounded-2xl font-black text-lg transition-all shadow-lg shadow-red-600/20 active:scale-95"
+              >
+                Termin im Radar erfassen
               </button>
             </div>
           </motion.div>
@@ -132,48 +170,62 @@ export default function RadarPage() {
 
       {/* LISTE */}
       {loading ? (
-        <div className="text-center py-20 text-gray-600 dark:text-gray-400">Scanne Radar...</div>
+        <div className="flex flex-col items-center py-20 gap-4">
+          <div className="w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-zinc-500 font-bold uppercase tracking-tighter">Scanne Orbit...</p>
+        </div>
       ) : exams.length === 0 ? (
-        <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed border-gray-200 text-gray-600 dark:text-gray-400">
-          Alles ruhig. Keine Prüfungen in Sicht. 🏖️
+        <div className="text-center py-24 bg-zinc-50 dark:bg-zinc-900/50 rounded-[3rem] border border-dashed border-zinc-200 dark:border-zinc-800">
+          <Clock className="mx-auto text-zinc-300 dark:text-zinc-700 mb-4" size={48} />
+          <h2 className="text-xl font-bold text-zinc-400">Keine Prüfungen im Radar</h2>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-6">
           {exams.map((e) => {
             const daysLeft = getDaysLeft(e.date);
-            const colorClass = getUrgencyColor(daysLeft);
+            const styleClass = getUrgencyStyles(daysLeft);
 
             return (
-              <div key={e.id} className={`p-6 rounded-3xl border ${colorClass} shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 transition-all hover:shadow-md`}>
-                
-                {/* INFO */}
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                  <div className="bg-white/50 w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-sm">
-                    {e.type === 'Klausur' ? '📝' : e.type === 'Referat' ? '🎤' : '📅'}
+              <motion.div 
+                layout
+                key={e.id} 
+                className={`p-6 md:p-8 rounded-[2.5rem] border ${styleClass} shadow-sm flex flex-col md:flex-row justify-between items-center gap-6 group transition-all`}
+              >
+                <div className="flex items-center gap-6 w-full md:w-auto">
+                  <div className="bg-white dark:bg-zinc-800 w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-zinc-500 shadow-sm border border-zinc-100 dark:border-zinc-700 transition-transform group-hover:rotate-6">
+                    {getIcon(e.type)}
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg md:text-xl">{e.title}</h3>
-                    <p className="opacity-70 text-sm font-medium">{new Date(e.date).toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest opacity-50">{e.type}</span>
+                      {daysLeft <= 3 && daysLeft >= 0 && <AlertTriangle size={14} className="text-red-500" />}
+                    </div>
+                    <h3 className="font-black text-xl md:text-2xl tracking-tight leading-none">{e.title}</h3>
+                    <p className="opacity-60 text-sm font-bold mt-2 flex items-center gap-1">
+                      <Calendar size={14} />
+                      {new Date(e.date).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' })}
+                    </p>
                   </div>
                 </div>
 
-                {/* COUNTDOWN */}
-                <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
+                <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-black/5 pt-4 md:pt-0">
                   <div className="text-right">
-                    <span className="block text-3xl font-black leading-none">
-                      {daysLeft < 0 ? 'Vorbei' : daysLeft}
+                    <span className="block text-4xl font-black leading-none tracking-tighter">
+                      {daysLeft < 0 ? 'Fin' : daysLeft}
                     </span>
-                    <span className="text-[10px] uppercase font-bold tracking-widest opacity-60">
-                      {daysLeft === 1 ? 'Tag' : 'Tage'}
+                    <span className="text-[10px] uppercase font-black tracking-[0.2em] opacity-40">
+                      {daysLeft === 1 ? 'Tag übrig' : daysLeft < 0 ? 'Erledigt' : 'Tage übrig'}
                     </span>
                   </div>
                   
-                  <button onClick={() => deleteExam(e.id)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/10 transition">
-                    🗑️
+                  <button 
+                    onClick={() => deleteExam(e.id)} 
+                    className="w-12 h-12 flex items-center justify-center rounded-2xl bg-black/5 hover:bg-red-500 hover:text-white transition-all active:scale-90"
+                  >
+                    <Trash2 size={20} />
                   </button>
                 </div>
-
-              </div>
+              </motion.div>
             );
           })}
         </div>

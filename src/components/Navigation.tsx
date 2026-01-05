@@ -1,9 +1,9 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { cn } from '@/lib/utils'
+import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   BrainCircuit,
@@ -17,47 +17,51 @@ import {
   Hourglass,
   Table,
   Menu,
-  X
-} from 'lucide-react'
-import { createClient } from '@/lib/supabase'
+  X,
+  Moon,
+  Sun
+} from 'lucide-react';
+import { supabase } from '@/supabaseClient';
+import { useTheme } from '@/components/providers/ThemeProvider';
 
 const routes = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { label: 'Second Brain', icon: BrainCircuit, href: '/notes' },
   { label: 'Tasks', icon: CheckSquare, href: '/tasks' }, 
   { label: 'Study', icon: BookOpen, href: '/flashcards' },
-  
-  // --- NEUE FEATURES ---
   { label: 'Zusammenfassungen', icon: FileText, href: '/summaries' },
   { label: 'AI Prompts', icon: Sparkles, href: '/prompts' },
   { label: 'Klausur Radar', icon: Target, href: '/radar' },
   { label: 'Fokus Zone', icon: Hourglass, href: '/focus' },
   { label: 'Cheat Sheets', icon: Table, href: '/cheatsheets' },
-  
   { label: 'Settings', icon: Settings, href: '/settings' },
-]
+];
 
 export function Sidebar() {
-  const [isOpen, setIsOpen] = useState(false)
-  const pathname = usePathname()
-  const router = useRouter()
-  const supabase = createClient()
+  const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+  const { theme, changeTheme } = useTheme();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  };
 
-  // Schließt die Sidebar auf Mobile, wenn ein Link geklickt wird
-  const closeSidebar = () => setIsOpen(false)
+  const toggleDarkMode = () => {
+    changeTheme(theme === 'dark' ? 'modern' : 'dark');
+  };
+
+  const closeSidebar = () => setIsOpen(false);
 
   return (
     <>
-      {/* 1. MOBILER BURGER BUTTON */}
+      {/* 1. MOBILER BURGER BUTTON (Zinc-Style) */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="lg:hidden fixed top-4 left-4 z-[60] p-2 bg-gray-900 border border-gray-700 rounded-md text-white shadow-xl"
+          className="lg:hidden fixed top-4 left-4 z-[60] p-3 bg-panel border border-zinc-200 dark:border-zinc-800 rounded-2xl text-zinc-900 dark:text-zinc-100 shadow-xl"
         >
           <Menu className="w-6 h-6" />
         </button>
@@ -66,61 +70,90 @@ export function Sidebar() {
       {/* 2. OVERLAY */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[45] lg:hidden"
+          className="fixed inset-0 bg-black/40 backdrop-blur-md z-[45] lg:hidden transition-opacity"
           onClick={closeSidebar}
         />
       )}
 
       {/* 3. SIDEBAR CONTAINER */}
       <aside className={cn(
-        "fixed left-0 top-0 z-50 h-[100dvh] w-64 bg-gray-900 border-r border-gray-800 flex flex-col transition-transform duration-300 ease-in-out overflow-y-auto",
-        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        "fixed left-0 top-0 z-50 h-[100dvh] w-72 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-900 flex flex-col transition-all duration-300 ease-in-out",
+        isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
       )}>
         
         {/* Header Bereich */}
-        <div className="p-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="p-8 flex items-center justify-between">
+          <h1 className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-zinc-100">
             Electro<span className="text-cyan-500">Brain</span>
           </h1>
-          <button onClick={closeSidebar} className="lg:hidden text-gray-600 dark:text-gray-400 hover:text-white">
+          <button onClick={closeSidebar} className="lg:hidden text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
             <X className="w-6 h-6" />
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-3 pb-20">
-          {routes.map((route) => (
-            <Link
-              key={route.href}
-              href={route.href}
-              onClick={closeSidebar}
-              className={cn(
-                'flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all text-sm font-medium',
-                pathname === route.href
-                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-white hover:bg-gray-800/50'
-              )}
-            >
-              <route.icon className={cn(
-                "w-5 h-5",
-                pathname === route.href ? "text-cyan-400" : "text-gray-600 dark:text-gray-400"
-              )} />
-              {route.label}
-            </Link>
-          ))}
+        <nav className="flex-1 space-y-1 px-4 overflow-y-auto custom-scrollbar pb-10">
+          {routes.map((route) => {
+            const isActive = pathname === route.href;
+            return (
+              <Link
+                key={route.href}
+                href={route.href}
+                onClick={closeSidebar}
+                className={cn(
+                  'flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-sm font-bold group',
+                  isActive
+                    ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 shadow-[inset_0_0_0_1px_rgba(6,182,212,0.2)]'
+                    : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900'
+                )}
+              >
+                <route.icon className={cn(
+                  "w-5 h-5 transition-transform group-hover:scale-110",
+                  isActive ? "text-cyan-500" : "text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100"
+                )} />
+                {route.label}
+              </Link>
+            );
+          })}
         </nav>
 
-        {/* Logout Bereich */}
-        <div className="p-3 border-t border-gray-800 bg-gray-900 sticky bottom-0">
+        {/* Footer Bereich (Toggle & Logout) */}
+        <div className="p-4 border-t border-zinc-100 dark:border-zinc-900 space-y-2">
+          
+          {/* DARK MODE SWITCHER */}
+          <button 
+            onClick={toggleDarkMode}
+            className="w-full flex items-center justify-between p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all group border border-zinc-200 dark:border-zinc-800"
+          >
+            <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+              {theme === 'dark' ? (
+                <Sun size={18} className="text-amber-500 fill-amber-500/20" />
+              ) : (
+                <Moon size={18} className="text-blue-500 fill-blue-500/20" />
+              )}
+              <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+            </div>
+            <div className={cn(
+              "w-10 h-5 rounded-full relative transition-colors p-1",
+              theme === 'dark' ? "bg-cyan-500" : "bg-zinc-300 dark:bg-zinc-700"
+            )}>
+              <div className={cn(
+                "w-3 h-3 bg-panel rounded-full transition-all shadow-sm",
+                theme === 'dark' ? "translate-x-5" : "translate-x-0"
+              )} />
+            </div>
+          </button>
+
+          {/* LOGOUT */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-gray-600 dark:text-gray-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all font-bold text-sm group"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             Logout
           </button>
         </div>
       </aside>
     </>
-  )
+  );
 }

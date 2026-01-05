@@ -73,7 +73,7 @@ export default function SummariesPage() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-black text-gray-800">Deep Learning 📚</h1>
-          <p className="text-gray-500 text-sm mt-1">{summaries.length} Zusammenfassungen gespeichert</p>
+          <p className="text-zinc-500 text-sm mt-1">{summaries.length} Zusammenfassungen gespeichert</p>
         </div>
         <button 
           onClick={() => setIsImporting(!isImporting)}
@@ -106,7 +106,7 @@ export default function SummariesPage() {
                 />
                 <label 
                     htmlFor="summary-upload" 
-                    className="bg-white text-blue-600 px-6 py-3 rounded-xl font-bold cursor-pointer shadow-sm hover:shadow-md transition border border-blue-100"
+                    className="bg-panel text-blue-600 px-6 py-3 rounded-xl font-bold cursor-pointer shadow-sm hover:shadow-md transition border border-blue-100"
                 >
                     Datei auswählen
                 </label>
@@ -120,12 +120,12 @@ export default function SummariesPage() {
         {loading ? (
             <div className="text-center py-20 text-gray-600 dark:text-gray-400">Lade Bibliothek...</div>
         ) : summaries.length === 0 ? (
-            <div className="text-center py-20 bg-gray-50 rounded-3xl border border-gray-100 text-gray-600 dark:text-gray-400">
+            <div className="text-center py-20 bg-canvas rounded-3xl border border-gray-100 text-gray-600 dark:text-gray-400">
                 Noch keine Zusammenfassungen. Importiere eine HTML Datei!
             </div>
         ) : (
             summaries.map((s) => (
-                <div key={s.id} className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+                <div key={s.id} className="bg-panel border border-gray-100 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all">
                     <button 
                         onClick={() => setOpenId(openId === s.id ? null : s.id)}
                         className="w-full flex justify-between items-center p-6 text-left"
@@ -161,7 +161,7 @@ export default function SummariesPage() {
                                 initial={{ height: 0 }} 
                                 animate={{ height: 'auto' }} 
                                 exit={{ height: 0 }}
-                                className="border-t border-gray-100 bg-gray-50/50"
+                                className="border-t border-gray-100 bg-canvas/50"
                             >
                                 <div className="p-8 prose prose-blue max-w-none prose-img:rounded-xl">
                                     {/* HTML INHALT */}
