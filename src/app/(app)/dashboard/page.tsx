@@ -9,7 +9,7 @@ import { supabase } from '../../../supabaseClient';
 import { useAuth } from '../../../components/providers/AuthProvider';
 import QuotePlayer from '../../../components/QuotePlayer';
 import { useTheme } from '../../../components/providers/ThemeProvider';
-import { Sidebar } from '@/components/layout/Sidebar'; // Falls nötig, aber Sidebar ist im Layout
+import { Sidebar } from '@/components/Navigation'; // Falls nötig, aber Sidebar ist im Layout
 
 export default function Dashboard() {
   const { user } = useAuth();
