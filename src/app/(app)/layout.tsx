@@ -42,22 +42,6 @@ export default function AppLayout({
     );
   }
 
-  // 2. AUTH-SCHUTZ
-  // Falls kein User da ist (z.B. Session abgelaufen), leiten wir nicht nur um, 
-  // sondern zeigen eine saubere Nachricht, falls der Redirect hakt.
-  if (!user) {
-    return (
-      <div className="h-[100dvh] flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-6 text-center">
-        <div className="max-w-sm">
-          <h2 className="text-2xl font-black mb-2 text-zinc-900 dark:text-white">Session abgelaufen</h2>
-          <p className="text-zinc-500 mb-8 font-medium">Bitte melde dich erneut an, um auf dein Brain zuzugreifen.</p>
-          <a href="/login" className="inline-block w-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-4 rounded-2xl font-black active:scale-95 transition-all shadow-xl">
-            Zum Login
-          </a>
-        </div>
-      </div>
-    );
-  }
 
   // 3. DAS ECHTE APP-LAYOUT
   return (
