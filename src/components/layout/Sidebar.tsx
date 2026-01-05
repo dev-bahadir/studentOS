@@ -46,7 +46,7 @@ export function Sidebar() {
   }
 
   return (
-    <div className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col h-screen fixed left-0 top-0 z-50 overflow-y-auto">
+    <div className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col h-[100dvh] fixed left-0 top-0 z-50 overflow-y-auto pb-20">
       <div className="p-6">
         <h1 className="text-2xl font-bold text-white">
           Electro<span className="text-cyan-500">Brain</span>
