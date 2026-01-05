@@ -1,85 +1,126 @@
-'use client';
+'use client'
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useAuth } from './providers/AuthProvider';
+import { useState } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
+import {
+  LayoutDashboard,
+  BrainCircuit,
+  CheckSquare,
+  BookOpen,
+  Settings,
+  LogOut,
+  FileText,
+  Sparkles,
+  Target,
+  Hourglass,
+  Table,
+  Menu,
+  X
+} from 'lucide-react'
+import { createClient } from '@/lib/supabase'
 
-export default function Navigation() {
-  const { user } = useAuth();
-  const pathname = usePathname();
+const routes = [
+  { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+  { label: 'Second Brain', icon: BrainCircuit, href: '/notes' },
+  { label: 'Tasks', icon: CheckSquare, href: '/tasks' }, 
+  { label: 'Study', icon: BookOpen, href: '/flashcards' },
+  
+  // --- NEUE FEATURES ---
+  { label: 'Zusammenfassungen', icon: FileText, href: '/summaries' },
+  { label: 'AI Prompts', icon: Sparkles, href: '/prompts' },
+  { label: 'Klausur Radar', icon: Target, href: '/radar' },
+  { label: 'Fokus Zone', icon: Hourglass, href: '/focus' },
+  { label: 'Cheat Sheets', icon: Table, href: '/cheatsheets' },
+  
+  { label: 'Settings', icon: Settings, href: '/settings' },
+]
 
-  // Wenn nicht eingeloggt, zeige keine Navigation
-  if (!user) return null;
+export function Sidebar() {
+  const [isOpen, setIsOpen] = useState(false)
+  const pathname = usePathname()
+  const router = useRouter()
+  const supabase = createClient()
 
-  const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: '📊' },
-    { name: 'Tasks', href: '/tasks', icon: '🚀' },
-    { name: 'Notes', href: '/notes', icon: '🧠' },
-    { name: 'Lernen', href: '/flashcards', icon: '🎓' },
-    { name: 'Settings', href: '/settings', icon: '⚙️' },
-  ];
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
- const isActive = (path: string) => {
-    if (!pathname) return false;
-    return pathname === path || pathname.startsWith(path + '/');
-  };
+  // Schließt die Sidebar auf Mobile, wenn ein Link geklickt wird
+  const closeSidebar = () => setIsOpen(false)
 
   return (
     <>
-      {/* --- DESKTOP SIDEBAR (Links) --- */}
-      <nav className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200 h-screen fixed left-0 top-0 z-50">
-        <div className="p-6 border-b border-gray-100">
-          <h1 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-            ElectroBrain
+      {/* 1. MOBILER BURGER BUTTON */}
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="lg:hidden fixed top-4 left-4 z-[60] p-2 bg-gray-900 border border-gray-700 rounded-md text-white shadow-xl"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* 2. OVERLAY */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[45] lg:hidden"
+          onClick={closeSidebar}
+        />
+      )}
+
+      {/* 3. SIDEBAR CONTAINER */}
+      <aside className={cn(
+        "fixed left-0 top-0 z-50 h-[100dvh] w-64 bg-gray-900 border-r border-gray-800 flex flex-col transition-transform duration-300 ease-in-out overflow-y-auto",
+        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      )}>
+        
+        {/* Header Bereich */}
+        <div className="p-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-white">
+            Electro<span className="text-cyan-500">Brain</span>
           </h1>
-          <p className="text-xs text-gray-400 mt-1">Operating System v1.0</p>
+          <button onClick={closeSidebar} className="lg:hidden text-gray-400 hover:text-white">
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
-        <div className="flex-1 p-4 space-y-2">
-          {navItems.map((item) => (
-            <Link 
-              key={item.href} 
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                isActive(item.href) 
-                  ? 'bg-blue-50 text-blue-700 font-bold shadow-sm' 
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1 px-3 pb-20">
+          {routes.map((route) => (
+            <Link
+              key={route.href}
+              href={route.href}
+              onClick={closeSidebar}
+              className={cn(
+                'flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all text-sm font-medium',
+                pathname === route.href
+                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+              )}
             >
-              <span className="text-xl">{item.icon}</span>
-              <span>{item.name}</span>
+              <route.icon className={cn(
+                "w-5 h-5",
+                pathname === route.href ? "text-cyan-400" : "text-gray-400"
+              )} />
+              {route.label}
             </Link>
           ))}
-        </div>
+        </nav>
 
-        <div className="p-4 border-t border-gray-100">
-          <div className="flex items-center gap-3 px-4 py-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
-              {user.email?.charAt(0).toUpperCase()}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-sm font-medium text-gray-700 truncate">{user.email}</p>
-              <p className="text-xs text-green-500">Online</p>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* --- MOBILE BOTTOM BAR (Unten) --- */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50 px-6 py-3 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        {navItems.map((item) => (
-          <Link 
-            key={item.href} 
-            href={item.href}
-            className={`flex flex-col items-center gap-1 transition ${
-              isActive(item.href) ? 'text-blue-600 scale-110' : 'text-gray-400'
-            }`}
+        {/* Logout Bereich */}
+        <div className="p-3 border-t border-gray-800 bg-gray-900 sticky bottom-0">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
           >
-            <span className="text-2xl">{item.icon}</span>
-            <span className="text-[10px] font-medium">{item.name}</span>
-          </Link>
-        ))}
-      </nav>
+            <LogOut className="w-5 h-5" />
+            Logout
+          </button>
+        </div>
+      </aside>
     </>
-  );
+  )
 }
