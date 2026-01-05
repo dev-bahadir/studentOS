@@ -3,25 +3,27 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/supabaseClient' // Pfad auf @ Alias korrigiert
+import { supabase } from '@/supabaseClient'
 
 type AuthContextType = {
   user: User | null
   session: Session | null
-  loading: boolean // Name angeglichen an AppLayout
+  loading: boolean    // Für das neue Layout
+  isLoading: boolean  // Für Kompatibilität mit alten Dateien wie ProtectedRoute
   signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // ^ Hier war die Klammer vergessen worden!
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true) // Name konsistent halten
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
-    // 1. Initialen Status direkt abfragen (verhindert hängendes Loading)
+    // 1. Initialen Status abfragen
     const initializeAuth = async () => {
       const { data: { session: initialSession } } = await supabase.auth.getSession()
       setSession(initialSession)
@@ -31,7 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth()
 
-    // 2. Auf Änderungen lauschen (Login, Logout, Token Refresh)
+    // 2. Auf Änderungen lauschen
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         setSession(currentSession)
@@ -63,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isLoading: loading, signOut }}>
       {children}
     </AuthContext.Provider>
   )
