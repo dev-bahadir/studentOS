@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { supabase } from './supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { sm2Service, SM2Result } from '@/services/sm2Algorithm.service';
 import { gamificationService, LevelStats } from '@/services/gamification.service';
 import { useAuth } from '@/components/providers/AuthProvider';
