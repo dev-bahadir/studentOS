@@ -3,12 +3,12 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
-import { supabase } from '../../supabaseClient'
+import { supabase } from '@/supabaseClient' // Pfad auf @ Alias korrigiert
 
 type AuthContextType = {
   user: User | null
   session: Session | null
-  isLoading: boolean
+  loading: boolean // Name angeglichen an AppLayout
   signOut: () => Promise<void>
 }
 
@@ -17,33 +17,53 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [loading, setLoading] = useState(true) // Name konsistent halten
   const router = useRouter()
 
   useEffect(() => {
+    // 1. Initialen Status direkt abfragen (verhindert hängendes Loading)
+    const initializeAuth = async () => {
+      const { data: { session: initialSession } } = await supabase.auth.getSession()
+      setSession(initialSession)
+      setUser(initialSession?.user ?? null)
+      setLoading(false)
+    }
+
+    initializeAuth()
+
+    // 2. Auf Änderungen lauschen (Login, Logout, Token Refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-(event: string, session: Session | null) => {
-  setSession(session);
-  setUser(session?.user ?? null);
-  setIsLoading(false);
-  
-  if (event === 'SIGNED_OUT') {
-    router.push('/login');
-    router.refresh();
-  }
-}
+      async (event, currentSession) => {
+        setSession(currentSession)
+        setUser(currentSession?.user ?? null)
+        setLoading(false)
+        
+        if (event === 'SIGNED_IN') {
+          router.refresh()
+        }
+
+        if (event === 'SIGNED_OUT') {
+          setUser(null)
+          setSession(null)
+          router.push('/login')
+          router.refresh()
+        }
+      }
     )
 
-    return () => subscription.unsubscribe()
-  }, [supabase, router])
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [router])
 
   const signOut = async () => {
+    setLoading(true)
     await supabase.auth.signOut()
     router.push('/login')
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   )
