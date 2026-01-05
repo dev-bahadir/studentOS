@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -6,14 +6,28 @@ import { AuthProvider } from "../components/providers/AuthProvider";
 import { ThemeProvider } from "../components/providers/ThemeProvider"; 
 import Navigation from "../components/Navigation"; 
 
-// ... restlicher Code ...
-
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "ElectroBrain OS",
   description: "Dein Second Brain",
+manifest: "/manifest.json", 
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "ElectroBrain",
+  },
 };
+
+// Damit Zoom auf dem Handy verhindert wird und es wie eine App wirkt:
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false, 
+  themeColor: "#111827",
+};
+
 
 export default function RootLayout({
   children,
