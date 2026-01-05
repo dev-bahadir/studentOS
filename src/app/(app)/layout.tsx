@@ -1,4 +1,4 @@
-import { Sidebar } from '@/components/layout/Sidebar' // 👈 WICHTIG: Der Pfad zu deiner neuen Sidebar
+import { Sidebar } from '@/components/Navigation' // 👈 WICHTIG: Der Pfad zu deiner neuen Sidebar
 
 export default function DashboardLayout({
   children,
