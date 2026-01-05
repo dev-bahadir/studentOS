@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useMemo } from 'react';
 import { supabase } from '@/supabaseClient'; 
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -13,6 +13,7 @@ type ThemeContextType = {
   updateName: (name: string) => void;
   customColors: any;
   setCustomColors: (colors: any) => void;
+  isInitialLoading: boolean; // NEU: Damit das Dashboard weiß, wann Ruhe ist
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -29,72 +30,79 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [fullName, setFullName] = useState('');
   const [customColors, setCustomColors] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const isFetching = useRef(false);
 
-  // Markiert die Komponente als im Browser geladen (verhindert Hydration-Fehler)
   useEffect(() => { 
     setMounted(true); 
   }, []);
 
-  // Profil-Daten (Name, Theme, Farben) laden
   useEffect(() => {
-    if (user && !isFetching.current) {
+    // Nur abfragen, wenn User da ist UND wir nicht schon laden
+    if (user?.id && !isFetching.current) {
       isFetching.current = true;
       const fetchProfile = async () => {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('theme, full_name, custom_colors')
-          .eq('id', user.id)
-          .single();
-          
-        if (!error && data) {
-          if (data.theme) setTheme(data.theme as Theme);
-          if (data.full_name) setFullName(data.full_name);
-          if (data.custom_colors) setCustomColors(data.custom_colors);
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('theme, full_name, custom_colors')
+            .eq('id', user.id)
+            .single();
+            
+          if (!error && data) {
+            if (data.theme) setTheme(data.theme as Theme);
+            if (data.full_name) setFullName(data.full_name);
+            if (data.custom_colors) setCustomColors(data.custom_colors);
+          }
+        } finally {
+          isFetching.current = false;
+          setIsInitialLoading(false);
         }
-        isFetching.current = false;
       };
       fetchProfile();
+    } else if (!user) {
+      setIsInitialLoading(false);
     }
-  }, [user]);
+  }, [user?.id]); // Präzise Abhängigkeit auf die ID
 
-  // CSS Variablen & Themes auf das HTML-Element anwenden
+  // Performance-Optimierung: CSS-Variablen gesammelt setzen
   useEffect(() => {
     if (!mounted) return;
+    
     const root = document.documentElement;
     
-    // Bestehende Theme-Klassen entfernen
-    root.className = '';
-    root.classList.add(`theme-${theme}`);
-    
-    // Tailwind Dark Mode Support
+    // Batch-Update der Klassen
+    const newClasses = [`theme-${theme}`];
     if (theme === 'dark' || theme === 'custom') {
-      root.classList.add('dark');
+      newClasses.push('dark');
     }
+    
+    root.className = newClasses.join(' ');
 
-    // Benutzerdefinierte Farben aus der JSONB-Spalte anwenden
-    if (theme === 'custom' && customColors) {
-      Object.keys(customColors).forEach(key => {
-        // Sicherstellen, dass die Variable mit -- beginnt
+    if (theme === 'custom' && customColors && Object.keys(customColors).length > 0) {
+      // Vorherige Custom-Styles säubern, um "Style-Leichen" zu vermeiden
+      root.removeAttribute('style');
+      
+      Object.entries(customColors).forEach(([key, value]) => {
         const varName = key.startsWith('--') ? key : `--${key}`;
-        root.style.setProperty(varName, customColors[key]);
+        root.style.setProperty(varName, value as string);
       });
-    } else {
-      // Styles zurücksetzen, wenn kein Custom Theme aktiv ist
+    } else if (theme !== 'custom') {
       root.removeAttribute('style');
     }
   }, [theme, customColors, mounted]);
 
+  // Funktionen mit useCallback (optional, aber stabil)
   const changeTheme = async (newTheme: Theme) => {
     setTheme(newTheme);
-    if (user) {
+    if (user?.id) {
       await supabase.from('profiles').update({ theme: newTheme }).eq('id', user.id);
     }
   };
 
   const updateName = async (name: string) => {
     setFullName(name);
-    if (user) {
+    if (user?.id) {
       await supabase.from('profiles').update({ full_name: name }).eq('id', user.id);
     }
   };
@@ -106,7 +114,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       fullName, 
       updateName, 
       customColors, 
-      setCustomColors 
+      setCustomColors,
+      isInitialLoading
     }}>
       {children}
     </ThemeContext.Provider>
