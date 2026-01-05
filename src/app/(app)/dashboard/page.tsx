@@ -4,8 +4,6 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-
-// 👇 Absolute Imports
 import { supabase } from '@/supabaseClient'; 
 import { useAuth } from '@/components/providers/AuthProvider';
 import QuotePlayer from '@/components/QuotePlayer';
@@ -22,6 +20,7 @@ const DISPLAY_IMAGES = [
 ];
 
 export default function Dashboard() {
+  // WICHTIG: Hier holen wir 'loading' aus der Auth, um nicht zu früh zu urteilen
   const { user, loading: authLoading } = useAuth();
   const { fullName, isInitialLoading: themeLoading } = useTheme();
   
@@ -75,6 +74,7 @@ export default function Dashboard() {
     if (user?.id) {
       fetchAllData(user.id);
     } else if (!authLoading) {
+      // Wenn Auth fertig ist und kein User da -> Datenladen beenden (damit der Redirect greift)
       setDataLoading(false);
     }
   }, [user?.id, authLoading, fetchAllData]);
@@ -115,8 +115,8 @@ export default function Dashboard() {
     }
   };
 
-  // 🛡️ Globaler Loading-State
-  if (authLoading || themeLoading || (dataLoading && user)) {
+  // 1. SYSTEM-SYNC: Warte auf Auth & Theme
+  if (authLoading || themeLoading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
         <motion.div 
@@ -124,24 +124,23 @@ export default function Dashboard() {
           transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
           className="h-10 w-10 border-4 border-cyan-500 border-t-transparent rounded-full"
         />
-        <p className="text-zinc-500 text-xs font-black uppercase tracking-[0.2em] animate-pulse">Syncing Neural Link...</p>
+        <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">
+          Neural Link Syncing...
+        </p>
       </div>
     );
   }
 
-  // 🛡️ Auth-Check Fallback
+  // 2. REDIRECT: Wenn System fertig, aber kein User da
   if (!user) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6">
-        <Lock className="text-zinc-700 mb-4" size={40} />
-        <h2 className="text-xl font-bold text-ink mb-2">Zugriff verweigert</h2>
-        <p className="text-zinc-500 mb-6">Bitte melde dich an, um dein Dashboard zu sehen.</p>
-        <Link href="/login" className="bg-cyan-500 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-cyan-500/20">Zum Login</Link>
-      </div>
-    );
+    if (typeof window !== 'undefined') {
+       // Hier leiten wir hart weiter, statt nur einen Link anzuzeigen
+       window.location.href = '/login'; 
+    }
+    return null; 
   }
 
-  // 🛡️ Approval Check
+  // 3. APPROVAL: Warteliste
   if (isApproved === false) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-6 text-center">
@@ -154,6 +153,7 @@ export default function Dashboard() {
     );
   }
 
+  // 4. DASHBOARD CONTENT
   return (
     <div className="min-h-screen bg-transparent p-4 md:p-10 pb-32 transition-colors duration-500">
       <div className="max-w-5xl mx-auto">
