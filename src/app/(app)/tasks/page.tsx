@@ -96,49 +96,68 @@ export default function TaskBoard() {
     const columnTasks = tasks.filter(t => t.status === status);
 
     return (
-      <div className={`flex-1 min-w-full md:min-w-[320px] bg-gray-50 dark:bg-zinc-900/40 rounded-3xl p-5 flex flex-col border-t-8 ${bgColor} shadow-sm mb-6 md:mb-0`}>
+      <div className={`flex-1 min-w-full md:min-w-[320px] bg-gray-50 dark:bg-zinc-900/60 rounded-3xl p-5 flex flex-col border-t-8 ${bgColor} shadow-sm mb-6 md:mb-0 transition-colors duration-200`}>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="font-extrabold text-lg flex items-center gap-2 dark:text-white">{icon} {title}</h2>
-          <span className="bg-white dark:bg-zinc-800 shadow-sm text-gray-500 px-3 py-1 rounded-full text-xs font-bold">{columnTasks.length}</span>
+          {/* Überschriften: Kräftiger und dunkler für besseren Kontrast */}
+          <h2 className="font-extrabold text-lg flex items-center gap-2 text-zinc-800 dark:text-zinc-100 tracking-tight">
+            {icon} {title}
+          </h2>
+          <span className="bg-white dark:bg-zinc-800 shadow-sm text-zinc-600 dark:text-zinc-300 px-3 py-1 rounded-full text-xs font-bold border border-zinc-200 dark:border-zinc-700">
+            {columnTasks.length}
+          </span>
         </div>
         
         <div className="space-y-4">
           {columnTasks.map(task => (
-            <div key={task.id} className="bg-white dark:bg-zinc-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700">
+            <div key={task.id} className="bg-white dark:bg-zinc-800 p-5 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 hover:shadow-md transition-shadow">
               
               {editingTaskId === task.id ? (
-                <input 
+                <textarea 
                   autoFocus
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   onBlur={saveEdit}
-                  onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
-                  className="w-full p-2 border-2 border-blue-400 rounded-lg outline-none dark:bg-zinc-900 dark:text-white"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault(); 
+                      saveEdit();
+                    }
+                  }}
+                  // Input Styling: Hoher Kontrast, gut lesbar
+                  className="w-full p-2 border-2 border-blue-500 rounded-lg outline-none bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 text-base leading-relaxed resize-none"
+                  rows={2}
                 />
               ) : (
-                <p onClick={() => { setEditingTaskId(task.id); setEditTitle(task.title); }} className="text-gray-800 dark:text-gray-100 font-semibold break-words cursor-pointer">
+                // Task Text: Optimierte Lesbarkeit durch leading-relaxed und Farbkontrast
+                <p 
+                  onClick={() => { setEditingTaskId(task.id); setEditTitle(task.title); }} 
+                  className="text-zinc-800 dark:text-zinc-100 text-base font-medium leading-relaxed break-words cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
                   {task.title}
                 </p>
               )}
 
-              <div className="flex justify-between items-center mt-5 pt-4 border-t border-gray-50 dark:border-zinc-700">
+              <div className="flex justify-between items-center mt-5 pt-4 border-t border-zinc-100 dark:border-zinc-700/50">
                 <button 
                   onClick={() => moveTask(task, 'backward')} 
-                  className={`p-2 bg-gray-100 dark:bg-zinc-700 rounded-xl active:scale-90 transition ${task.status === 'todo' ? 'opacity-0 pointer-events-none' : ''}`}
+                  className={`p-2 bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-xl active:scale-90 transition hover:bg-zinc-200 dark:hover:bg-zinc-600 ${task.status === 'todo' ? 'opacity-0 pointer-events-none' : ''}`}
+                  title="Zurück"
                 >
                   ⬅️
                 </button>
                 
                 <button 
                   onClick={() => deleteTask(task.id)} 
-                  className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-gray-900/20 rounded-xl transition-colors"
+                  className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+                  title="Löschen"
                 >
                   <span className="text-xl">🗑️</span>
                 </button>
 
                 <button 
                   onClick={() => moveTask(task, 'forward')} 
-                  className={`p-2 bg-gray-100 dark:bg-zinc-700 rounded-xl active:scale-90 transition ${task.status === 'done' ? 'opacity-0 pointer-events-none' : ''}`}
+                  className={`p-2 bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-xl active:scale-90 transition hover:bg-zinc-200 dark:hover:bg-zinc-600 ${task.status === 'done' ? 'opacity-0 pointer-events-none' : ''}`}
+                  title="Weiter"
                 >
                   ➡️
                 </button>
@@ -151,23 +170,26 @@ export default function TaskBoard() {
   };
 
   return (
-    <div className="p-4 md:p-10 min-h-screen max-w-7xl mx-auto pb-32">
-      <h1 className="text-3xl font-black mb-8 dark:text-white">Projekt Board 🚀</h1>
+    <div className="p-4 md:p-10 min-h-screen max-w-7xl mx-auto pb-32 bg-transparent text-zinc-900 dark:text-zinc-100">
+      <h1 className="text-4xl font-black mb-8 text-zinc-900 dark:text-white tracking-tight">
+        Projekt Board 🚀
+      </h1>
 
       <form onSubmit={addTask} className="mb-10 flex gap-3">
         <input 
           value={newTask}
           onChange={(e) => setNewTask(e.target.value)}
           placeholder="Was steht an?"
-          className="flex-1 p-4 bg-white dark:bg-zinc-800 border-none rounded-2xl shadow-inner focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
+          // Großes Input-Feld mit klarem Text
+          className="flex-1 p-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 outline-none text-zinc-900 dark:text-white placeholder:text-zinc-400 text-lg font-medium"
         />
-        <button type="submit" className="bg-blue-600 text-white px-8 rounded-2xl font-black hover:bg-blue-700 transition-all active:scale-95">
+        <button type="submit" className="bg-blue-600 text-white px-8 rounded-2xl font-bold text-lg hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-500/30">
           Add
         </button>
       </form>
 
       <div className="flex flex-col md:flex-row gap-8">
-        <Column title="Zu erledigen" status="todo" bgColor="border-gray-300" icon="📋" />
+        <Column title="Zu erledigen" status="todo" bgColor="border-zinc-400" icon="📋" />
         <Column title="In Arbeit" status="doing" bgColor="border-blue-500" icon="🔥" />
         <Column title="Erledigt" status="done" bgColor="border-green-500" icon="✅" />
       </div>
