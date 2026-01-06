@@ -7,7 +7,7 @@ import { Search, Trash2, PenLine, Tag, Plus, Loader2 } from 'lucide-react';
 
 // 1. Importiere die neuen Layer
 import { NoteService } from '@/application/notes/NoteService';
-import { SupabaseNoteRepository } from '@infrastructure/SupabaseNoteRepository';
+import { SupabaseNoteRepository } from '@/infrastructure/notes/SupabaseNoteRepository';
 import { Note } from '@/domain/notes/types'; // Für Typ-Sicherheit
 
 // UI-Konfiguration für Kategorien
