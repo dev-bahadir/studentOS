@@ -1,12 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { 
-  Loader2, AlertCircle, CheckCircle2, KeyRound, 
-  LogIn, Github, Mail, Lock, ArrowLeft 
-} from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Settings, Shield, BarChart3, Lock, Mail, Github } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function LoginPage() {
@@ -15,20 +12,36 @@ export default function LoginPage() {
   // States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showResetField, setShowResetField] = useState(false);
 
-  // --- LOGIK (komprimiert für Übersichtlichkeit) ---
+  // Load Remember Me
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('electro_saved_email');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
+
+  // --- LOGIK ---
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setError(null);
+
     try {
+      if (rememberMe) localStorage.setItem('electro_saved_email', email);
+      else localStorage.removeItem('electro_saved_email');
+
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (authError) throw authError;
       if (data.session) {
-        router.push('/dashboard');
+        router.push('/dashboard'); // Passe Pfad an
         router.refresh();
       }
     } catch (err: any) {
@@ -37,204 +50,169 @@ export default function LoginPage() {
     }
   };
 
-  const handleSignUp = async () => {
-    setLoading(true); setError(null);
-    if (password.length < 6) { setError("Passwort zu kurz (min. 6)."); setLoading(false); return; }
-    const { error } = await supabase.auth.signUp({ 
-        email, password, 
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` } 
-    });
-    if (error) setError(error.message);
-    else setSuccessMessage('Account erstellt! Bitte E-Mail bestätigen.');
-    setLoading(false);
-  };
-
-  const handleResetPassword = async () => {
-    if (!email) { setError("Bitte E-Mail für Reset eingeben."); return; }
-    setLoading(true); setError(null);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
-    if (error) setError(error.message);
-    else setSuccessMessage("Reset-Link gesendet! Prüfe deine Mails.");
-    setLoading(false);
-    setTimeout(() => setShowResetField(false), 4000);
-  };
-
   const handleSocialLogin = async () => {
     await supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: `${window.location.origin}/auth/callback` } });
   };
 
+  // --- RENDERING ---
   return (
-    <div className="min-h-screen w-full bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen w-full flex bg-[#0a0e12] text-white overflow-hidden relative font-sans">
       
-      {/* BACKGROUND ELEMENTS (Subtile Deko) */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-500/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
+      {/* ANIMATED BACKGROUND (CSS Translation aus deinem HTML) */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#0a0e12] to-[#0f1419]" />
+         {/* Drifting Blobs */}
+         <motion.div 
+           animate={{ x: [0, 30, 0], y: [0, -30, 0] }}
+           transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+           className="absolute top-[20%] left-[20%] w-[500px] h-[500px] bg-[radial-gradient(circle,rgba(0,212,255,0.08)_0%,transparent_70%)] rounded-full blur-3xl"
+         />
+         <motion.div 
+           animate={{ x: [0, -40, 0], y: [0, 40, 0] }}
+           transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+           className="absolute bottom-[10%] right-[10%] w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(0,212,255,0.05)_0%,transparent_70%)] rounded-full blur-3xl"
+         />
       </div>
 
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="w-full max-w-[420px] relative z-10"
-      >
-        
-        {/* CARD CONTAINER */}
-        <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-[2rem] shadow-2xl overflow-hidden p-8 md:p-10">
-          
-          {/* HEADER */}
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-2xl mb-6 shadow-lg shadow-cyan-500/30">
-              <BrainIcon className="text-white w-8 h-8" />
+      {/* --- LEFT SIDE: HERO (Desktop Only) --- */}
+      <div className="hidden lg:flex flex-1 flex-col justify-center items-center relative z-10 bg-gradient-to-b from-[#0f1419]/95 to-[#0a0e12]/95 p-12 overflow-hidden border-r border-[#00d4ff]/10">
+         {/* Pulse Effect Background */}
+         <motion.div 
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] bg-[radial-gradient(circle,rgba(0,212,255,0.03)_0%,transparent_50%)] pointer-events-none"
+         />
+         
+         <div className="max-w-md text-center z-20">
+            <motion.h1 
+              initial={{ opacity: 0, y: -30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}
+              className="text-6xl font-black mb-6 tracking-tight bg-gradient-to-br from-[#00d4ff] to-[#00a8d8] bg-clip-text text-transparent drop-shadow-lg"
+            >
+              ⚡ electrobrain
+            </motion.h1>
+            
+            <motion.p 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.8 }}
+              className="text-lg text-zinc-400 mb-12 font-light leading-relaxed"
+            >
+              Willkommen bei der intelligenten Engineering-Plattform. <br/>
+              Synchronisiere dein Wissen.
+            </motion.p>
+
+            <div className="flex flex-col gap-4 text-left">
+               {[
+                 { icon: Settings, text: "Echtzeit-Zusammenarbeit" },
+                 { icon: Shield, text: "Enterprise-Sicherheit" },
+                 { icon: BarChart3, text: "Erweiterte Analytics" }
+               ].map((item, idx) => (
+                 <motion.div 
+                   key={idx}
+                   initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + (idx * 0.1) }}
+                   className="flex items-center gap-4 p-4 rounded-xl bg-[#00d4ff]/5 border border-[#00d4ff]/15 hover:bg-[#00d4ff]/10 hover:border-[#00d4ff]/30 hover:translate-x-2 transition-all duration-300 group cursor-default"
+                 >
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#00d4ff] to-[#00a8d8] flex items-center justify-center text-black shadow-lg shadow-cyan-500/20">
+                      <item.icon size={16} strokeWidth={3} />
+                    </div>
+                    <span className="text-zinc-300 font-medium group-hover:text-white transition-colors">{item.text}</span>
+                 </motion.div>
+               ))}
             </div>
-            <h1 className="text-3xl font-black tracking-tight mb-2 bg-gradient-to-br from-zinc-900 to-zinc-600 dark:from-white dark:to-zinc-500 bg-clip-text text-transparent">
-              ElectroBrain
-            </h1>
-            <p className="text-zinc-500 font-medium">Dein zweites Gehirn wartet.</p>
-          </div>
+         </div>
+      </div>
 
-          {/* ALERTS */}
-          <AnimatePresence mode="wait">
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 rounded-xl flex items-start gap-3"
-              >
-                <AlertCircle className="text-red-500 mt-0.5 shrink-0" size={18} />
-                <p className="text-red-700 dark:text-red-300 text-sm font-medium leading-relaxed">{error}</p>
-              </motion.div>
-            )}
-            {successMessage && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/50 rounded-xl flex items-start gap-3"
-              >
-                <CheckCircle2 className="text-green-500 mt-0.5 shrink-0" size={18} />
-                <p className="text-green-700 dark:text-green-300 text-sm font-medium leading-relaxed">{successMessage}</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+      {/* --- RIGHT SIDE: FORM --- */}
+      <div className="flex-1 flex flex-col justify-center items-center p-8 relative z-20">
+         <motion.div 
+           initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }}
+           className="w-full max-w-[400px]"
+         >
+            <div className="mb-10 text-center lg:text-left">
+               <h2 className="text-4xl font-bold text-white mb-2 tracking-tight">Willkommen zurück, dein zweites Brain wartet schon auf dich</h2>
+               <p className="text-zinc-500">Melde dich an, um fortzufahren</p>
+            </div>
 
-          {/* MAIN FORM */}
-          <AnimatePresence mode="wait">
-            {!showResetField ? (
-              <motion.form 
-                key="login-form"
-                initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                onSubmit={handleLogin} className="space-y-4"
-              >
-                <div className="space-y-4">
+            {/* Error / Success Messages */}
+            <AnimatePresence>
+               {error && (
+                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm flex items-center gap-3">
+                    <AlertCircle size={18} /> {error}
+                 </motion.div>
+               )}
+            </AnimatePresence>
+
+            <form onSubmit={handleLogin} className="space-y-6"
+            suppressHydrationWarning>
+               <div className="space-y-2">
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">E-Mail Adresse</label>
                   <div className="relative group">
-                    <Mail className="absolute left-4 top-3.5 text-zinc-400 group-focus-within:text-cyan-500 transition-colors" size={20} />
+                    <Mail className="absolute left-4 top-3.5 text-zinc-500 group-focus-within:text-[#00d4ff] transition-colors" size={20} />
                     <input 
-                      type="email" 
-                      value={email} onChange={(e) => setEmail(e.target.value)} 
-                      placeholder="name@beispiel.de" 
-                      className="w-full pl-12 pr-4 py-3 bg-zinc-50 dark:bg-black/50 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all font-medium placeholder:text-zinc-400"
+                      type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                      placeholder="deine@email.com"
+                      className="w-full pl-12 pr-4 py-3 bg-white/5 border border-[#00d4ff]/25 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:bg-[#00d4ff]/10 focus:border-[#00d4ff] focus:shadow-[0_0_20px_rgba(0,212,255,0.2)] transition-all duration-300 backdrop-blur-md"
                       required
+                      suppressHydrationWarning
                     />
                   </div>
+               </div>
+
+               <div className="space-y-2">
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Passwort</label>
                   <div className="relative group">
-                    <Lock className="absolute left-4 top-3.5 text-zinc-400 group-focus-within:text-cyan-500 transition-colors" size={20} />
+                    <Lock className="absolute left-4 top-3.5 text-zinc-500 group-focus-within:text-[#00d4ff] transition-colors" size={20} />
                     <input 
-                      type="password" 
-                      value={password} onChange={(e) => setPassword(e.target.value)} 
-                      placeholder="••••••••" 
-                      className="w-full pl-12 pr-4 py-3 bg-zinc-50 dark:bg-black/50 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all font-medium placeholder:text-zinc-400"
+                      type={showPassword ? "text" : "password"} 
+                      value={password} onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-12 pr-12 py-3 bg-white/5 border border-[#00d4ff]/25 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:bg-[#00d4ff]/10 focus:border-[#00d4ff] focus:shadow-[0_0_20px_rgba(0,212,255,0.2)] transition-all duration-300 backdrop-blur-md"
                       required
+                      suppressHydrationWarning
                     />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-zinc-500 hover:text-[#00d4ff] transition-colors">
+                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
                   </div>
-                </div>
+               </div>
 
-                <div className="flex items-center justify-end">
-                  <button type="button" onClick={() => setShowResetField(true)} className="text-xs font-bold text-zinc-500 hover:text-cyan-500 transition-colors">
-                    Passwort vergessen?
-                  </button>
-                </div>
+               <div className="flex items-center justify-between text-sm">
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                     <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${rememberMe ? 'bg-[#00d4ff] border-[#00d4ff]' : 'bg-white/5 border-[#00d4ff]/25 group-hover:border-[#00d4ff]'}`}>
+                        {rememberMe && <CheckCircle2 size={12} className="text-[#0a0e12]" />}
+                     </div>
+                     <input type="checkbox" className="hidden" checked={rememberMe} onChange={() => setRememberMe(!rememberMe)} />
+                     <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors">Mich merken</span>
+                  </label>
+                  <a href="#" className="text-[#00d4ff] hover:text-[#00b8d4] hover:underline font-medium transition-colors">Passwort vergessen?</a>
+               </div>
 
-                <button 
+               <button 
                   type="submit" disabled={loading}
-                  className="w-full py-3.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2 shadow-xl shadow-zinc-200 dark:shadow-none"
-                >
-                  {loading ? <Loader2 size={20} className="animate-spin" /> : <><LogIn size={20} /> Anmelden</>}
-                </button>
+                  className="w-full py-4 bg-gradient-to-br from-[#00d4ff] to-[#00a8d8] text-[#0a0e12] font-bold rounded-lg uppercase tracking-widest hover:translate-y-[-2px] hover:shadow-[0_12px_32px_rgba(0,212,255,0.2)] active:translate-y-0 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 relative overflow-hidden group"
+               >
+                  {/* Shine Effect Overlay */}
+                  <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out" />
+                  
+                  {loading ? <Loader2 className="animate-spin" /> : 'Anmelden'}
+               </button>
 
-                <div className="relative py-4">
-                  <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-zinc-200 dark:border-zinc-800" /></div>
-                  <div className="relative flex justify-center text-xs uppercase"><span className="bg-white dark:bg-zinc-900 px-2 text-zinc-400 font-bold">Oder</span></div>
-                </div>
+               <div className="relative py-4">
+                  <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-zinc-800" /></div>
+                  <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#0a0e12] px-2 text-zinc-600 font-bold">Oder</span></div>
+               </div>
 
-                <button 
-                  type="button" onClick={handleSocialLogin}
-                  className="w-full py-3.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
-                >
-                  <Github size={20} /> Mit GitHub fortfahren
-                </button>
+               <button 
+                 type="button" onClick={handleSocialLogin}
+                 className="w-full py-3 bg-white/5 border border-zinc-800 text-zinc-300 font-bold rounded-lg hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+               >
+                 <Github size={20} /> GitHub Login
+               </button>
 
-                <p className="text-center text-sm text-zinc-500 mt-6 font-medium">
-                  Neu hier? <button type="button" onClick={handleSignUp} className="text-cyan-500 hover:text-cyan-600 hover:underline">Account erstellen</button>
-                </p>
-              </motion.form>
-            ) : (
-              // RESET VIEW
-              <motion.div 
-                key="reset-form"
-                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-                className="space-y-6"
-              >
-                <button onClick={() => setShowResetField(false)} className="flex items-center gap-2 text-sm font-bold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 mb-4 transition-colors">
-                  <ArrowLeft size={16}/> Zurück zum Login
-                </button>
-                
-                <div className="text-center space-y-2">
-                   <div className="w-12 h-12 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-2 text-zinc-500"><KeyRound size={24}/></div>
-                   <h3 className="text-xl font-bold">Passwort zurücksetzen</h3>
-                   <p className="text-sm text-zinc-500">Gib deine E-Mail ein, wir schicken dir einen Link.</p>
-                </div>
-
-                <div className="relative group">
-                    <Mail className="absolute left-4 top-3.5 text-zinc-400 group-focus-within:text-cyan-500 transition-colors" size={20} />
-                    <input 
-                      type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="deine@email.com" 
-                      className="w-full pl-12 pr-4 py-3 bg-zinc-50 dark:bg-black/50 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all font-medium"
-                    />
-                </div>
-
-                <button 
-                  onClick={handleResetPassword} disabled={loading}
-                  className="w-full py-3.5 bg-cyan-500 hover:bg-cyan-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-cyan-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {loading ? <Loader2 size={20} className="animate-spin" /> : 'Link anfordern'}
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-        </div>
-        
-        {/* FOOTER */}
-        <p className="text-center text-xs text-zinc-400 mt-8 font-medium">
-          &copy; {new Date().getFullYear()} ElectroBrain OS. Secure & Encrypted.
-        </p>
-
-      </motion.div>
+               <p className="text-center text-zinc-500 text-sm mt-8">
+                  Noch kein Konto? <a href="#" className="text-[#00d4ff] font-bold hover:underline">Jetzt registrieren</a>
+               </p>
+            </form>
+         </motion.div>
+      </div>
     </div>
-  );
-}
-
-// Kleines Brain Icon Helper (oder importiere Brain von lucide-react direkt)
-function BrainIcon({className}: {className?: string}) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
-      <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
-      <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
-      <path d="M17.599 6.5a3 3 0 0 0 .399-1.375" />
-      <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" />
-      <path d="M3.477 10.896a4 4 0 0 1 .585-.396" />
-      <path d="M19.938 10.5a4 4 0 0 1 .585.396" />
-      <path d="M6 18a4 4 0 0 1-1.937-.5" />
-      <path d="M19.937 17.5A4 4 0 0 1 18 18" />
-    </svg>
   );
 }
