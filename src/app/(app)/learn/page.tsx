@@ -5,16 +5,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link'; 
 import { 
   Brain, Sparkles, Trophy, Target, Plus, Upload, Play, 
-  Loader2, Layers, Clock, GraduationCap, LayoutGrid 
+  Loader2, Layers, Clock, LayoutGrid 
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/providers/AuthProvider';
 
-// Komponenten Imports
+// Imports
 import { FlashcardImporter } from '@/components/FlashcardImporter';
 import { KnowledgeVault } from '@/components/KnowledgeVault/KnowledgeVault';
 
-// Zentrale Glass-Klasse
 const glassClass = "bg-white/5 dark:bg-zinc-900/20 backdrop-blur-xl border border-white/10 dark:border-zinc-800/50 shadow-xl";
 
 interface Deck {
@@ -25,17 +24,17 @@ interface Deck {
 }
 
 export default function LearnPage() {
+  // 1. ALLE Hooks müssen immer ausgeführt werden (ganz oben)
   const { user } = useAuth();
   
-  // TABS: 'overview' (Decks/Stats) oder 'import' (AI/File)
   const [activeTab, setActiveTab] = useState<'overview' | 'import'>('overview');
-  
   const [decks, setDecks] = useState<Deck[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Beispiel-Stats (Statisch für Demo, später dynamisch)
+  // Stats
   const stats = { dailyGoal: 50, learned: 12, streak: 5, mastered: 142 };
 
+  // 2. Funktion definieren
   const loadDecks = async () => {
     if (!user) return;
     try {
@@ -53,13 +52,11 @@ export default function LearnPage() {
         const now = new Date().toISOString();
         const decksWithCount = await Promise.all(
           decksData.map(async (deck) => {
-            // 1. Gesamtanzahl
             const { count: totalCount } = await supabase
               .from('flashcards')
               .select('*', { count: 'exact', head: true })
               .eq('deck_id', deck.id);
             
-            // 2. Fällige Karten (FSRS)
             const { count: dueCount } = await supabase
               .from('flashcards')
               .select('*', { count: 'exact', head: true })
@@ -82,12 +79,23 @@ export default function LearnPage() {
     }
   };
 
+  // 3. Effect
   useEffect(() => {
-    loadDecks();
+    if (user) loadDecks();
   }, [user]);
 
-  if (!user) return null;
+  // 4. SICHERHEITS-CHECK (Das repariert Fehler #310)
+  // Statt "return null" zeigen wir einen Spinner. 
+  // So bleibt der React-Tree stabil.
+  if (!user) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="animate-spin w-10 h-10 text-purple-500" />
+      </div>
+    );
+  }
 
+  // 5. Normaler Render
   return (
     <div className="w-full max-w-[1920px] mx-auto p-4 md:p-8 lg:p-12 min-h-screen pb-40 bg-transparent text-zinc-900 dark:text-zinc-100 overflow-x-hidden">
       
@@ -102,7 +110,6 @@ export default function LearnPage() {
            </p>
         </div>
 
-        {/* TAB SWITCHER */}
         <div className="flex bg-zinc-100 dark:bg-black/20 p-1.5 rounded-2xl w-full md:w-auto">
            <button 
              onClick={() => setActiveTab('overview')}
@@ -121,7 +128,7 @@ export default function LearnPage() {
 
       <AnimatePresence mode="wait">
         
-        {/* === TAB 1: OVERVIEW (DECKS & STATS) === */}
+        {/* === TAB 1: OVERVIEW === */}
         {activeTab === 'overview' && (
           <motion.div
             key="overview"
@@ -130,7 +137,7 @@ export default function LearnPage() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            {/* STATS GRID */}
+            {/* STATS */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                 <StatCard icon={<Target className="text-blue-400" />} label="Tagesziel" value={`${stats.learned}/${stats.dailyGoal}`} sub="Karten heute" />
                 <StatCard icon={<Trophy className="text-yellow-400" />} label="Streak" value={`${stats.streak} Tage`} sub="Nicht abreißen lassen!" />
@@ -138,10 +145,9 @@ export default function LearnPage() {
                 <StatCard icon={<Sparkles className="text-emerald-400" />} label="Level 4" value="1,240 XP" sub="360 XP bis Level 5" />
             </div>
 
-            {/* MAIN CONTENT */}
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
                 
-                {/* DECKS GRID */}
+                {/* DECKS */}
                 <div className="xl:col-span-3 space-y-8">
                 <h2 className="text-3xl font-black flex items-center gap-3 tracking-tight">
                     <Layers size={28} className="text-purple-500" /> Aktive Decks
@@ -163,7 +169,6 @@ export default function LearnPage() {
                             <DeckCard key={deck.id} deck={deck} color="bg-cyan-500" />
                         ))}
 
-                        {/* NEW DECK BUTTON (Switches to Import Tab) */}
                         <button 
                         onClick={() => setActiveTab('import')} 
                         className={`h-64 rounded-[2.5rem] border-2 border-dashed border-zinc-300 dark:border-zinc-800 hover:border-purple-500/50 hover:bg-purple-500/5 flex flex-col items-center justify-center gap-4 transition-all group ${glassClass}`}
@@ -175,7 +180,7 @@ export default function LearnPage() {
                 )}
                 </div>
                 
-                {/* SIDEBAR AI */}
+                {/* SIDEBAR */}
                 <div className="space-y-8">
                 <h2 className="text-3xl font-black flex items-center gap-3 tracking-tight">
                     <Sparkles size={28} className="text-yellow-500" /> AI Assistant
@@ -200,7 +205,7 @@ export default function LearnPage() {
           </motion.div>
         )}
 
-        {/* === TAB 2: IMPORT CENTER (KnowledgeVault + Importer) === */}
+        {/* === TAB 2: IMPORT CENTER === */}
         {activeTab === 'import' && (
           <motion.div 
              key="import"
@@ -209,19 +214,18 @@ export default function LearnPage() {
              exit={{ opacity: 0, x: -20 }}
              className="grid grid-cols-1 xl:grid-cols-2 gap-8"
           >
-             {/* LINKS: AI Knowledge Vault */}
+             {/* LEFT: KnowledgeVault */}
              <div className="flex flex-col gap-6">
                 <div className="flex items-center gap-3 mb-2">
                     <span className="p-2 bg-purple-500/10 text-purple-500 rounded-xl"><Sparkles size={20} /></span>
                     <h3 className="text-xl font-black">AI Generator (PDF)</h3>
                 </div>
                 <KnowledgeVault onCardsGenerated={() => {
-                    // Nach Generierung optional zurück zur Übersicht oder bleiben
                     loadDecks();
                 }} />
              </div>
 
-             {/* RECHTS: Klassischer Import */}
+             {/* RIGHT: File Import */}
              <div className="flex flex-col gap-6">
                 <div className="flex items-center gap-3 mb-2">
                     <span className="p-2 bg-zinc-500/10 text-zinc-500 rounded-xl"><Layers size={20} /></span>
@@ -231,7 +235,6 @@ export default function LearnPage() {
                 <div className={`p-8 rounded-[3rem] ${glassClass} h-full flex flex-col justify-center items-center text-center`}>
                     <FlashcardImporter 
                         onImportSuccess={loadDecks}
-                        // Kein onClose nötig, da wir hier nicht im Modal sind
                     />
                     
                     <div className="mt-12 pt-8 border-t border-zinc-200 dark:border-white/5 w-full">
@@ -272,8 +275,6 @@ function DeckCard({ deck, color }: { deck: Deck, color: string }) {
   const hasDueCards = deck.due_count > 0;
 
   return (
-    // ACHTUNG: Stelle sicher, dass diese Route existiert: src/app/(app)/learn/[id]/page.tsx
-    // Falls nicht, leite vorerst auf /learn um oder entferne den Link.
     <Link href={`/learn/${deck.id}`} className="block group h-full">
         <div className={`h-64 p-8 rounded-[2.5rem] flex flex-col justify-between relative overflow-hidden transition-all duration-300 group-hover:-translate-y-2 ${glassClass} group-hover:border-cyan-500/30`}>
             
