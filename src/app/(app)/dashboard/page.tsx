@@ -313,7 +313,7 @@ export default function SuperDashboard() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="w-full">
             <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none">
-              Moin, <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">{fullName || user?.email?.split('@')[0]}</span>
+              Assalamu Alaikum wa Rahmatullahi wa Barakatuh , <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">{fullName || user?.email?.split('@')[0]}</span>
             </h1>
             <div className="flex items-center gap-4 pt-4">
                <span className="bg-cyan-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-cyan-500/20">
