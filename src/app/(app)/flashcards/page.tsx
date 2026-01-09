@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/providers/AuthProvider';
-import FlashcardImporter from '@/components/FlashcardImporter';
+import { FlashcardImporter } from '@/components/FlashcardImporter';
 import {
   Brain,
   FolderPlus,

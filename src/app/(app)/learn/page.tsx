@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { Brain, Sparkles, Trophy, Target, Plus, Upload, Play, Loader2, Layers, Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/providers/AuthProvider';
-import FlashcardImporter from '@/components/FlashcardImporter'; 
+import { FlashcardImporter } from '@/components/FlashcardImporter';
+import { KnowledgeVault } from '@/components/KnowledgeVault/KnowledgeVault';
 
 // Zentrale Glass-Klasse für Konsistenz
 const glassClass = "bg-white/5 dark:bg-zinc-900/20 backdrop-blur-xl border border-white/10 dark:border-zinc-800/50 shadow-xl";
