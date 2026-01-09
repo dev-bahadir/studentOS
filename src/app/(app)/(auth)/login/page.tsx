@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link'; // WICHTIG: Link Komponente nutzen
 import { supabase } from '@/lib/supabaseClient';
 import { Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Settings, Shield, BarChart3, Lock, Mail, Github } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,8 +18,6 @@ export default function LoginPage() {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [showResetField, setShowResetField] = useState(false);
 
   // Load Remember Me
   useEffect(() => {
@@ -32,7 +31,8 @@ export default function LoginPage() {
   // --- LOGIK ---
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); setError(null);
+    setLoading(true); 
+    setError(null);
 
     try {
       if (rememberMe) localStorage.setItem('electro_saved_email', email);
@@ -40,28 +40,36 @@ export default function LoginPage() {
 
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (authError) throw authError;
+
       if (data.session) {
-        router.push('/dashboard'); // Passe Pfad an
+        router.push('/dashboard'); 
         router.refresh();
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Ein Fehler ist aufgetreten.');
       setLoading(false);
     }
   };
 
   const handleSocialLogin = async () => {
-    await supabase.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: `${window.location.origin}/auth/callback` } });
+    // Sicherstellen, dass wir im Browser sind
+    if (typeof window === 'undefined') return;
+    
+    await supabase.auth.signInWithOAuth({ 
+      provider: 'github', 
+      options: { 
+        redirectTo: `${window.location.origin}/auth/callback` 
+      } 
+    });
   };
 
   // --- RENDERING ---
   return (
     <div className="min-h-screen w-full flex bg-[#0a0e12] text-white overflow-hidden relative font-sans">
       
-      {/* ANIMATED BACKGROUND (CSS Translation aus deinem HTML) */}
+      {/* ANIMATED BACKGROUND */}
       <div className="fixed inset-0 pointer-events-none z-0">
          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#0a0e12] to-[#0f1419]" />
-         {/* Drifting Blobs */}
          <motion.div 
            animate={{ x: [0, 30, 0], y: [0, -30, 0] }}
            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
@@ -78,9 +86,9 @@ export default function LoginPage() {
       <div className="hidden lg:flex flex-1 flex-col justify-center items-center relative z-10 bg-gradient-to-b from-[#0f1419]/95 to-[#0a0e12]/95 p-12 overflow-hidden border-r border-[#00d4ff]/10">
          {/* Pulse Effect Background */}
          <motion.div 
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] bg-[radial-gradient(circle,rgba(0,212,255,0.03)_0%,transparent_50%)] pointer-events-none"
+           animate={{ scale: [1, 1.1, 1] }}
+           transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+           className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] bg-[radial-gradient(circle,rgba(0,212,255,0.03)_0%,transparent_50%)] pointer-events-none"
          />
          
          <div className="max-w-md text-center z-20">
@@ -127,7 +135,7 @@ export default function LoginPage() {
            className="w-full max-w-[400px]"
          >
             <div className="mb-10 text-center lg:text-left">
-               <h2 className="text-4xl font-bold text-white mb-2 tracking-tight">Willkommen zurück, dein zweites Brain wartet schon auf dich</h2>
+               <h2 className="text-4xl font-bold text-white mb-2 tracking-tight">Willkommen zurück</h2>
                <p className="text-zinc-500">Melde dich an, um fortzufahren</p>
             </div>
 
@@ -140,8 +148,7 @@ export default function LoginPage() {
                )}
             </AnimatePresence>
 
-            <form onSubmit={handleLogin} className="space-y-6"
-            suppressHydrationWarning>
+            <form onSubmit={handleLogin} className="space-y-6">
                <div className="space-y-2">
                   <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">E-Mail Adresse</label>
                   <div className="relative group">
@@ -151,7 +158,6 @@ export default function LoginPage() {
                       placeholder="deine@email.com"
                       className="w-full pl-12 pr-4 py-3 bg-white/5 border border-[#00d4ff]/25 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:bg-[#00d4ff]/10 focus:border-[#00d4ff] focus:shadow-[0_0_20px_rgba(0,212,255,0.2)] transition-all duration-300 backdrop-blur-md"
                       required
-                      suppressHydrationWarning
                     />
                   </div>
                </div>
@@ -166,7 +172,6 @@ export default function LoginPage() {
                       placeholder="••••••••"
                       className="w-full pl-12 pr-12 py-3 bg-white/5 border border-[#00d4ff]/25 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:bg-[#00d4ff]/10 focus:border-[#00d4ff] focus:shadow-[0_0_20px_rgba(0,212,255,0.2)] transition-all duration-300 backdrop-blur-md"
                       required
-                      suppressHydrationWarning
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-zinc-500 hover:text-[#00d4ff] transition-colors">
                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -182,33 +187,40 @@ export default function LoginPage() {
                      <input type="checkbox" className="hidden" checked={rememberMe} onChange={() => setRememberMe(!rememberMe)} />
                      <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors">Mich merken</span>
                   </label>
-                  <a href="#" className="text-[#00d4ff] hover:text-[#00b8d4] hover:underline font-medium transition-colors">Passwort vergessen?</a>
+                  {/* FIX: Echter Link statt # */}
+                  <Link href="/reset-password" className="text-[#00d4ff] hover:text-[#00b8d4] hover:underline font-medium transition-colors">
+                    Passwort vergessen?
+                  </Link>
                </div>
 
                <button 
                   type="submit" disabled={loading}
                   className="w-full py-4 bg-gradient-to-br from-[#00d4ff] to-[#00a8d8] text-[#0a0e12] font-bold rounded-lg uppercase tracking-widest hover:translate-y-[-2px] hover:shadow-[0_12px_32px_rgba(0,212,255,0.2)] active:translate-y-0 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 relative overflow-hidden group"
                >
-                  {/* Shine Effect Overlay */}
                   <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out" />
-                  
                   {loading ? <Loader2 className="animate-spin" /> : 'Anmelden'}
                </button>
 
+               {/* FIX: Social Login UI eingebaut */}
                <div className="relative py-4">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-zinc-800" /></div>
                   <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#0a0e12] px-2 text-zinc-600 font-bold">Oder</span></div>
                </div>
 
                <button 
-                 type="button" onClick={handleSocialLogin}
-                 className="w-full py-3 bg-white/5 border border-zinc-800 text-zinc-300 font-bold rounded-lg hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                  type="button" 
+                  onClick={handleSocialLogin}
+                  className="w-full py-3 bg-white/5 border border-zinc-700 hover:bg-white/10 text-white rounded-lg flex items-center justify-center gap-3 transition-all duration-300 hover:border-zinc-500 font-medium"
                >
-                 <Github size={20} /> GitHub Login
+                  <Github size={20} /> Mit GitHub anmelden
                </button>
 
-               <p className="text-center text-zinc-500 text-sm mt-8">
-                  Noch kein Konto? <a href="#" className="text-[#00d4ff] font-bold hover:underline">Jetzt registrieren</a>
+               <p className="text-center text-zinc-500 text-sm mt-6">
+                  Noch kein Konto? 
+                  {/* FIX: Echter Link statt # */}
+                  <Link href="/register" className="text-[#00d4ff] font-bold hover:underline ml-1">
+                    Jetzt registrieren
+                  </Link>
                </p>
             </form>
          </motion.div>

@@ -1,107 +1,138 @@
-'use client';
+'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  ReactNode,
+} from 'react'
+import { User, Session } from '@supabase/supabase-js'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabaseClient'
 
-type AuthContextType = {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  isLoading: boolean;
-  signOut: () => Promise<void>;
-};
+/* ────────────────────────────────────────────────────────────────
+   Auth Context Type
+   ──────────────────────────────────────────────────────────────── */
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+interface AuthContextType {
+  user: User | null
+  session: Session | null
+  loading: boolean
+  signOut: () => Promise<void>
+}
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+/* ────────────────────────────────────────────────────────────────
+   Context Creation
+   ──────────────────────────────────────────────────────────────── */
 
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+/* ────────────────────────────────────────────────────────────────
+   Auth Provider Component
+   ──────────────────────────────────────────────────────────────── */
+
+interface AuthProviderProps {
+  children: ReactNode
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+
+  /* Initialize Auth & Listen for Changes */
   useEffect(() => {
-    let isMounted = true;
+    let isMounted = true
 
-    // 1. Initialen Status abfragen
     const initializeAuth = async () => {
       try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        const { data: { session: initialSession } } = await supabase.auth.getSession()
+        
         if (isMounted) {
-          setSession(initialSession);
-          setUser(initialSession?.user ?? null);
+          setSession(initialSession)
+          setUser(initialSession?.user ?? null)
+          setLoading(false)
         }
-      } catch (err) {
-        console.error('Auth init error:', err);
-      } finally {
+      } catch (error) {
+        console.error('Auth initialization error:', error)
         if (isMounted) {
-          setLoading(false);
+          setLoading(false)
         }
       }
-    };
+    }
 
-    initializeAuth();
+    initializeAuth()
 
-    // 2. Auf Änderungen lauschen
+    /* Subscribe to Auth State Changes */
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
-        if (!isMounted) return;
+        if (!isMounted) return
 
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+        setSession(currentSession)
+        setUser(currentSession?.user ?? null)
 
         if (event === 'SIGNED_IN') {
-          router.refresh();
+          router.refresh()
         }
 
         if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setSession(null);
-          router.push('/login');
-          router.refresh();
+          setUser(null)
+          setSession(null)
+          router.push('/login')
+          router.refresh()
         }
 
-        setLoading(false);
+        setLoading(false)
       }
-    );
+    )
 
     return () => {
-      isMounted = false;
-      subscription?.unsubscribe();
-    };
-  }, [router]);
-
-  const signOut = useCallback(async () => {
-    setLoading(true);
-    try {
-      await supabase.auth.signOut();
-      router.push('/login');
-    } catch (err) {
-      console.error('Sign out error:', err);
-      setLoading(false);
+      isMounted = false
+      subscription?.unsubscribe()
     }
-  }, [router]);
+  }, [router])
+
+  /* Sign Out Handler */
+  const signOut = useCallback(async () => {
+    setLoading(true)
+    try {
+      await supabase.auth.signOut()
+      setUser(null)
+      setSession(null)
+      router.push('')
+    } catch (error) {
+      console.error('Sign out error:', error)
+      setLoading(false)
+    }
+  }, [router])
 
   const value: AuthContextType = {
     user,
     session,
     loading,
-    isLoading: loading,
     signOut,
-  };
+  }
 
   return (
     <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
-  );
+  )
 }
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
+/* ────────────────────────────────────────────────────────────────
+   useAuth Hook
+   ──────────────────────────────────────────────────────────────── */
+
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext)
+  
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider')
   }
-  return context;
-};
+  
+  return context
+}

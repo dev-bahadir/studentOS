@@ -1,66 +1,43 @@
-import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
-import NextTopLoader from "nextjs-toploader";
-import "./globals.css";
-import { AuthProvider } from "@/components/providers/AuthProvider";
-import { ThemeProvider } from "@/components/providers/ThemeProvider";
+'use client'
 
-const inter = Inter({ subsets: ["latin"] });
+import { ReactNode } from 'react'
+import { Providers } from '@/components/providers'
+import { Sidebar } from '@/components/Navigation' // Pfad ggf. anpassen
+import { usePathname } from 'next/navigation'
+import './globals.css'
 
-// 1. Metadata für SEO und PWA
-export const metadata: Metadata = {
-  title: "ElectroBrain OS",
-  description: "Dein Second Brain. Organisiere Tasks, Notizen und Wissen an einem Ort.",
-  manifest: "/manifest.json",
-  icons: {
-    icon: "/icons/icon-192x192.png",
-    apple: "/icons/icon-512x512.png",
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "ElectroBrain",
-  },
-};
+export default function RootLayout({ children }: { children: ReactNode }) {
+  const pathname = usePathname()
 
-// 2. Viewport für das mobile Erlebnis
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  themeColor: "#09090b",
-};
+  // FIX: Korrekte Prüfung für Auth-Seiten (da '/auth' nicht Teil der URL ist)
+  const isAuthPage = ['/login', '/register', '/reset-password'].includes(pathname || '')
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
   return (
-    <html lang="de" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased`}>
-        {/* Der Loader zeigt einen Fortschrittsbalken beim Navigieren zwischen Seiten */}
-        <NextTopLoader
-          color="#06b6d4"
-          initialPosition={0.08}
-          crawlSpeed={200}
-          height={3}
-          crawl={true}
-          showSpinner={false}
-          easing="ease"
-          speed={200}
-          zIndex={1600}
-          showAtBottom={false}
-        />
+    <html lang="de" suppressHydrationWarning className="h-full">
+      <head>
+        <meta name="theme-color" content="#09090b" />
+        <link rel="manifest" href="/manifest.json" />
+      </head>
+      <body className="bg-slate-950 text-white min-h-screen">
+        <Providers>
+          {/* Container ist 'flex': Sidebar und Main stehen automatisch nebeneinander.
+          */}
+          <div className="flex min-h-screen relative">
+            
+            {/* Sidebar rendern */}
+            {!isAuthPage && <Sidebar />}
+            
+            {/* FIX: 'md:pl-64' ENTFERNT!
+               Da der Parent 'flex' ist, braucht der Main-Container kein Padding mehr.
+               Er nimmt sich einfach den restlichen Platz ('flex-1').
+            */}
+            <main className="flex-1 w-full transition-all duration-300">
+              {children}
+            </main>
 
-        {/* Providers für Auth und Theme */}
-        <AuthProvider>
-          <ThemeProvider>
-            {children}
-          </ThemeProvider>
-        </AuthProvider>
+          </div>
+        </Providers>
       </body>
     </html>
-  );
+  )
 }

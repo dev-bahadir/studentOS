@@ -1,144 +1,224 @@
-'use client';
+'use client'
 
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { useAuth } from '@/components/providers/AuthProvider';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+  ReactNode,
+} from 'react'
+import { supabase } from '@/lib/supabaseClient'
+import { useAuth } from '@/components/providers/AuthProvider'
 
-export type Theme = 'modern' | 'dark' | 'pastel' | 'custom';
+/* ────────────────────────────────────────────────────────────────
+   Types
+   ──────────────────────────────────────────────────────────────── */
 
-type ThemeContextType = {
-  theme: Theme;
-  changeTheme: (t: Theme) => Promise<void>;
-  fullName: string;
-  updateName: (name: string) => Promise<void>;
-  customColors: any;
-  setCustomColors: (colors: any) => Promise<void>;
-  isInitialLoading: boolean;
-};
+export type Theme = 'modern' | 'dark' | 'pastel' | 'custom'
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+interface CustomColors {
+  [key: string]: string
+}
 
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (!context) throw new Error('useTheme must be used within a ThemeProvider');
-  return context;
-};
+interface ThemeContextType {
+  theme: Theme
+  changeTheme: (theme: Theme) => Promise<void>
+  fullName: string
+  updateName: (name: string) => Promise<void>
+  customColors: CustomColors | null
+  setCustomColors: (colors: CustomColors) => void // Kein Promise nötig, da nur State update
+  isInitialLoading: boolean
+}
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  const [theme, setTheme] = useState<Theme>('modern');
-  const [fullName, setFullName] = useState('');
-  const [customColors, setCustomColorsState] = useState<any>(null);
-  const [mounted, setMounted] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const isFetching = useRef(false);
+/* ────────────────────────────────────────────────────────────────
+   Context Creation
+   ──────────────────────────────────────────────────────────────── */
 
-  // Verhindert Hydration-Fehler
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
+
+/* ────────────────────────────────────────────────────────────────
+   useTheme Hook
+   ──────────────────────────────────────────────────────────────── */
+
+export const useTheme = (): ThemeContextType => {
+  const context = useContext(ThemeContext)
+  if (!context) {
+    throw new Error('useTheme must be used within a ThemeProvider')
+  }
+  return context
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Theme Provider Component
+   ──────────────────────────────────────────────────────────────── */
+
+interface ThemeProviderProps {
+  children: ReactNode
+}
+
+export function ThemeProvider({ children }: ThemeProviderProps) {
+  const { user } = useAuth()
+  const [theme, setTheme] = useState<Theme>('modern')
+  const [fullName, setFullName] = useState('')
+  const [customColors, setCustomColorsState] = useState<CustomColors | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const isFetching = useRef(false)
+
+  /* ──────────────────────────────────────────────────────────────
+     Hydration Fix
+     ────────────────────────────────────────────────────────────── */
+
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    setMounted(true)
+  }, [])
 
-  // Profildaten laden – nur EINMAL wenn User sich ändert
+  /* ──────────────────────────────────────────────────────────────
+     Load User Profile Data
+     ────────────────────────────────────────────────────────────── */
+
   useEffect(() => {
-    if (!user?.id || isFetching.current) return;
+    if (!user?.id || isFetching.current) return
 
-    isFetching.current = true;
-    setIsInitialLoading(true);
+    isFetching.current = true
+    setIsInitialLoading(true)
 
-  const fetchProfile = async () => {
+    const fetchProfile = async () => {
       try {
         const { data, error } = await supabase
           .from('profiles')
           .select('theme, full_name, custom_colors')
           .eq('id', user.id)
-          .single();
+          .single()
+
+        if (error) {
+          console.error('Profile fetch error:', error.message)
+          return
+        }
 
         if (data) {
-          if (data.theme) setTheme(data.theme as Theme);
-          if (data.full_name) setFullName(data.full_name);
-          if (data.custom_colors) setCustomColorsState(data.custom_colors);
+          if (data.theme) setTheme(data.theme as Theme)
+          if (data.full_name) setFullName(data.full_name)
+          if (data.custom_colors) setCustomColorsState(data.custom_colors as CustomColors)
         }
-      } catch (err) {
-        console.error('Profile fetch error:', err);
+      } catch (error) {
+        console.error('Profile fetch error:', error)
       } finally {
-        // 🔥 WICHTIG: Das hier beendet den Ladebildschirm!
-        isFetching.current = false;
-        setIsInitialLoading(false); 
+        isFetching.current = false
+        setIsInitialLoading(false)
       }
-    };
+    }
 
-    fetchProfile();
-  }, [user?.id]); // Nur auf user.id reagieren
+    fetchProfile()
+  }, [user?.id])
 
-  // CSS-Variablen setzen – SEPARAT, um Render-Loop zu vermeiden
+  /* ──────────────────────────────────────────────────────────────
+     Apply Theme to DOM (Live Preview Logic)
+     ────────────────────────────────────────────────────────────── */
+
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted) return
 
-    const root = document.documentElement;
+    const root = document.documentElement
 
-    // Klassen setzen
-    const newClasses = [`theme-${theme}`];
+    /* 1. Setze die Basis-Klassen */
+    const themeClasses = [`theme-${theme}`]
+    
+    // Custom Themes basieren meist auf dem Dark-Mode-Gerüst für Glassmorphism,
+    // es sei denn, man baut eine Logik für helle Custom-Themes. 
+    // Hier aktivieren wir 'dark' für 'dark' und 'custom'.
     if (theme === 'dark' || theme === 'custom') {
-      newClasses.push('dark');
+      themeClasses.push('dark')
+    } else {
+      root.classList.remove('dark')
     }
-    root.className = newClasses.join(' ');
+    
+    // Bereinige alte Klassen und setze neue
+    root.classList.remove('theme-modern', 'theme-dark', 'theme-pastel', 'theme-custom')
+    root.classList.add(...themeClasses)
 
-    // Custom Colors anwenden
+    /* 2. Setze CSS Variablen für Custom Colors */
     if (theme === 'custom' && customColors && Object.keys(customColors).length > 0) {
-      root.removeAttribute('style');
+      // Style-Attribut bereinigen, damit sich keine alten Werte stauen
+      // (Optional, je nach Performance-Wunsch, aber sicherer)
+      
       Object.entries(customColors).forEach(([key, value]) => {
-        const varName = key.startsWith('--') ? key : `--${key}`;
-        root.style.setProperty(varName, value as string);
-      });
-    } else if (theme !== 'custom') {
-      root.removeAttribute('style');
+        // Stellt sicher, dass Variablen immer mit -- beginnen
+        const varName = key.startsWith('--') ? key : `--${key}`
+        root.style.setProperty(varName, value)
+      })
+    } else {
+      // Wenn nicht Custom, entfernen wir die Inline-Styles, 
+      // damit die Tailwind-Klassen (z.B. aus globals.css) greifen
+      root.removeAttribute('style')
     }
-  }, [theme, customColors, mounted]); // Stabil und minimal
+  }, [theme, customColors, mounted])
 
-  // Alle Funktionen mit useCallback für Stabilität
-  const changeTheme = useCallback(async (newTheme: Theme) => {
-    setTheme(newTheme);
-    if (user?.id) {
+  /* ──────────────────────────────────────────────────────────────
+     Theme Update Handler (Persistiert sofort)
+     ────────────────────────────────────────────────────────────── */
+
+  const changeTheme = useCallback(
+    async (newTheme: Theme) => {
+      setTheme(newTheme)
+
+      if (!user?.id) return
+
       try {
-        await supabase
+        const { error } = await supabase
           .from('profiles')
           .update({ theme: newTheme })
-          .eq('id', user.id);
-      } catch (err) {
-        console.error('Theme update error:', err);
-      }
-    }
-  }, [user?.id]);
+          .eq('id', user.id)
 
-  const updateName = useCallback(async (name: string) => {
-    setFullName(name);
-    if (user?.id) {
+        if (error) throw error
+      } catch (error) {
+        console.error('Theme update error:', error)
+      }
+    },
+    [user?.id]
+  )
+
+  /* ──────────────────────────────────────────────────────────────
+     Full Name Update Handler (Persistiert sofort)
+     ────────────────────────────────────────────────────────────── */
+
+  const updateName = useCallback(
+    async (name: string) => {
+      setFullName(name)
+
+      if (!user?.id) return
+
       try {
-        await supabase
+        const { error } = await supabase
           .from('profiles')
           .update({ full_name: name })
-          .eq('id', user.id);
-      } catch (err) {
-        console.error('Name update error:', err);
-      }
-    }
-  }, [user?.id]);
+          .eq('id', user.id)
 
-  const setCustomColors = useCallback(async (colors: any) => {
-    setCustomColorsState(colors);
-    if (user?.id) {
-      try {
-        await supabase
-          .from('profiles')
-          .update({ custom_colors: colors })
-          .eq('id', user.id);
-      } catch (err) {
-        console.error('Custom colors update error:', err);
+        if (error) throw error
+      } catch (error) {
+        console.error('Name update error:', error)
       }
-    }
-  }, [user?.id]);
+    },
+    [user?.id]
+  )
 
-  // Memoize Context Value um unnötige Re-Renders zu vermeiden
+  /* ──────────────────────────────────────────────────────────────
+     Custom Colors Handler (NUR LOCAL STATE UPDATE für Performance)
+     ────────────────────────────────────────────────────────────── */
+
+  const setCustomColors = useCallback((colors: CustomColors) => {
+    // Wir speichern hier NICHT in die DB. Das macht der "Speichern"-Button 
+    // in der SettingsPage, um Datenbank-Spamming beim Color-Picking zu verhindern.
+    setCustomColorsState(colors)
+  }, [])
+
+  /* ──────────────────────────────────────────────────────────────
+     Memoize Context Value
+     ────────────────────────────────────────────────────────────── */
+
   const value = useMemo<ThemeContextType>(
     () => ({
       theme,
@@ -150,11 +230,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       isInitialLoading,
     }),
     [theme, changeTheme, fullName, updateName, customColors, setCustomColors, isInitialLoading]
-  );
+  )
 
   return (
     <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
-  );
+  )
 }

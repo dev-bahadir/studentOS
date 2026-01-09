@@ -19,7 +19,8 @@ import {
   Menu,
   X,
   Moon,
-  Sun
+  Sun,
+  Zap
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useTheme } from '@/components/providers/ThemeProvider';
@@ -29,6 +30,7 @@ const routes = [
   { label: 'Second Brain', icon: BrainCircuit, href: '/notes' },
   { label: 'Tasks', icon: CheckSquare, href: '/tasks' }, 
   { label: 'Study', icon: BookOpen, href: '/flashcards' },
+  { label: 'Learn Mode', icon: Zap, href: '/learn' },
   { label: 'Zusammenfassungen', icon: FileText, href: '/summaries' },
   { label: 'AI Prompts', icon: Sparkles, href: '/prompts' },
   { label: 'Klausur Radar', icon: Target, href: '/radar' },
@@ -42,21 +44,15 @@ export function Sidebar() {
   const pathname = usePathname();
   const { theme, changeTheme } = useTheme();
 
-  /**
-   * Stabile Logout-Funktion
-   * Beendet die Session und bereinigt den Browser-Speicher komplett.
-   */
   const handleLogout = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
     try {
       await supabase.auth.signOut();
-      
       if (typeof window !== 'undefined') {
         localStorage.clear();
         sessionStorage.clear();
-        // Harter Redirect verhindert State-Leichen
         window.location.href = '/login';
       }
     } catch (error) {
@@ -73,7 +69,7 @@ export function Sidebar() {
 
   return (
     <>
-      {/* 1. MOBILER BURGER BUTTON (Sichtbar unter 1024px) */}
+      {/* 1. MOBILER BURGER BUTTON */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
@@ -83,7 +79,7 @@ export function Sidebar() {
         </button>
       )}
 
-      {/* 2. OVERLAY FÜR MOBILE (Schließt Sidebar bei Klick daneben) */}
+      {/* 2. OVERLAY */}
       {isOpen && (
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[45] lg:hidden transition-opacity animate-in fade-in"
@@ -93,8 +89,11 @@ export function Sidebar() {
 
       {/* 3. SIDEBAR CONTAINER */}
       <aside className={cn(
-        "fixed left-0 top-0 z-50 h-[100dvh] w-72 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-900 flex flex-col transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none",
-        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        // FIX: lg:sticky hinzugefügt, damit es im Flex-Layout Platz einnimmt
+        "fixed left-0 top-0 z-50 h-[100dvh] w-72 flex flex-col transition-transform duration-300 ease-in-out",
+        "bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-900 shadow-2xl lg:shadow-none",
+        "lg:sticky lg:top-0 lg:translate-x-0", // Desktop: Immer sichtbar & sticky
+        isOpen ? "translate-x-0" : "-translate-x-full" // Mobile: Rein/Raus
       )}>
         
         {/* Logo & Close Button */}
@@ -117,7 +116,9 @@ export function Sidebar() {
                 href={route.href}
                 onClick={closeSidebar}
                 className={cn(
-                  'flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-sm font-bold group select-none',
+                  // FIX: Hier war der Fehler! Ich habe die Container-Klassen entfernt.
+                  // Jetzt sind es nur Button-Klassen:
+                  "group flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all",
                   isActive
                     ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 shadow-[inset_0_0_0_1px_rgba(6,182,212,0.2)]'
                     : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900'
@@ -133,7 +134,7 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Footer: Theme Switcher & Logout */}
+        {/* Footer */}
         <div className="p-4 m-4 mt-0 bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl border border-zinc-100 dark:border-zinc-800 space-y-2">
           
           <button 

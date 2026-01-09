@@ -167,9 +167,9 @@ export default function StudySession() {
       </div>
 
       {sessionComplete ? (
-        <div className="bg-panel p-10 rounded-3xl shadow-xl text-center max-w-md w-full animate-in zoom-in border border-gray-100">
+        <div className="bg-panel p-10 rounded-3xl shadow-xl text-center max-w-md w-full animate-in zoom-in border border-gray-100 dark:border-zinc-80">
           <div className="text-6xl mb-6">🎉</div>
-          <h2 className="text-2xl font-black text-gray-800 mb-2">Session Complete!</h2>
+          <h2 className="text-2xl font-black text-gray-800 dark:text-zinc-100 mb-2">Session Complete!</h2>
           <p className="text-zinc-500 mb-8 leading-relaxed">
             Starke Leistung! Du hast dir +50 XP verdient.
           </p>
@@ -179,9 +179,10 @@ export default function StudySession() {
         </div>
       ) : cards.length > 0 ? (
         <div className="w-full max-w-md flex flex-col flex-1">
-          <p className="text-center text-gray-600 dark:text-gray-400 text-xs font-bold uppercase tracking-widest mb-6">
-            Noch {cards.length} Karten
-          </p>
+         <p className="text-center text-gray-600 dark:text-gray-400 text-xs font-bold uppercase tracking-widest mb-6">
+  {/* Wenn cards existiert, zeige die Länge, sonst 0 */}
+  Noch {cards ? cards.length : 0} Karten
+</p>
           
           <div 
             onClick={() => setIsFlipped(!isFlipped)}
@@ -192,14 +193,14 @@ export default function StudySession() {
                
                {/* VORDERSEITE */}
                <div className="absolute backface-hidden w-full h-full bg-panel rounded-3xl shadow-xl border border-gray-100 flex items-center justify-center p-8 text-center" style={{ backfaceVisibility: 'hidden' }}>
-                 <p className="text-2xl md:text-3xl font-medium text-zinc-800 leading-relaxed">
+                 <p className="text-2xl md:text-3xl font-medium text-zinc-800 dark:text-zinc-100 leading-relaxed">
                     {cards[0].front}
                  </p>
                  <span className="absolute top-6 left-6 text-xs text-gray-600 dark:text-gray-400 uppercase font-extrabold tracking-widest">Frage</span>
                </div>
                
                {/* RÜCKSEITE */}
-               <div className="absolute backface-hidden w-full h-full bg-blue-50/80 backdrop-blur-sm rounded-3xl shadow-xl border border-blue-100 flex items-center justify-center p-8 text-center transform rotate-y-180" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+               <div className="absolute backface-hidden w-full h-full bg-blue-50/80 dark:bg-blue-950/80 backdrop-blur-sm rounded-3xl shadow-xl border border-blue-100 flex items-center justify-center p-8 text-center transform rotate-y-180" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
                  <p className="text-2xl md:text-3xl font-medium text-ink leading-relaxed">
                     {cards[0].back}
                  </p>
@@ -265,7 +266,7 @@ export default function StudySession() {
             suppressHydrationWarning 
             value={newFront} 
             onChange={(e) => setNewFront(e.target.value)} 
-            className="w-full p-4 border border-gray-100 rounded-xl bg-canvas focus:bg-panel focus:ring-2 focus:ring-blue-500 outline-none transition text-gray-800 placeholder:text-gray-600 dark:text-gray-400" 
+            className="w-full p-4 border border-gray-100 dark:border-zinc-800 rounded-xl bg-canvas focus:bg-panel focus:ring-2 focus:ring-blue-500 outline-none transition text-gray-800 placeholder:text-gray-600 dark:text-gray-400" 
             placeholder="Frage eingeben..." 
           />
           <input 

@@ -1,508 +1,303 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { FlashcardImporter } from '@/components/FlashcardImporter';
-import { 
-  Brain, CheckCircle2, XCircle, AlertCircle, ChevronRight, ChevronDown,
-  Edit2, Save, X, Trash2, FolderPlus, Plus, Upload, MoreVertical,
-  Folder, FolderOpen, Layers, Settings2
+import FlashcardImporter from '@/components/FlashcardImporter';
+import {
+  Brain,
+  FolderPlus,
+  Layers,
+  Settings2,
+  Trash2,
+  X,
+  Search,
+  Loader2,
+  Upload
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
-// --- TYPEN ---
-type Flashcard = {
+// Types
+interface Deck {
   id: string;
-  front: string;
-  back: string;
-  category: string;
-  folder: string | null; // NEU: Ordner
-  interval: number;
-  ease_factor: number;
-  due_date: string;
-};
-
-// Hilfstyp für die gruppierte Struktur
-type GroupedData = {
-  [folderName: string]: string[]; // FolderName -> Liste von Kategorien
-};
+  name: string;
+  user_id: string;
+  created_at: string;
+}
 
 export default function FlashcardsPage() {
   const { user } = useAuth();
-  
-  // --- STATES ---
-  const [cards, setCards] = useState<Flashcard[]>([]);
-  
-  // Strukturierung
-  const [folders, setFolders] = useState<string[]>([]); // Liste aller Ordner
-  const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
-  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
-  
-  // UI & Stats
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ total: 0, due: 0 });
-  const [newInput, setNewInput] = useState('');
-  const [isCreatingMode, setIsCreatingMode] = useState<'category' | 'folder' | null>(null);
 
-  // Management (Rename / Move)
-  const [settingsTarget, setSettingsTarget] = useState<{ type: 'category' | 'folder', name: string } | null>(null);
-  const [renameValue, setRenameValue] = useState('');
-  const [moveToFolderValue, setMoveToFolderValue] = useState('');
+  // States
+  const [decks, setDecks] = useState<Deck[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingMode, setIsCreatingMode] = useState(false);
+  const [newDeckName, setNewDeckName] = useState('');
+  const [settingsTarget, setSettingsTarget] = useState<Deck | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Add/Import Modal
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [targetCategoryForAdd, setTargetCategoryForAdd] = useState('');
-  const [addMode, setAddMode] = useState<'single' | 'import'>('single');
-  const [newCardForm, setNewCardForm] = useState({ front: '', back: '' });
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importLoading, setImportLoading] = useState(false);
+  // FIX: State für den Importer, damit er nicht sofort aufploppt
+  const [isImporting, setIsImporting] = useState(false);
 
-  // Edit Card State
-  const [isEditingCard, setIsEditingCard] = useState(false);
-  const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [cardEditForm, setCardEditForm] = useState({ front: '', back: '', category: '' });
+  // Load decks
+  const loadDecks = async () => {
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
+    try {
+      setIsLoading(true);
+      setError(null);
+      const { data, error: supabaseError } = await supabase
+        .from('decks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-  // Lern-Session
-  const [learningQueue, setLearningQueue] = useState<Flashcard[]>([]);
-  const [isLearning, setIsLearning] = useState(false);
-  const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  const [showAnswer, setShowAnswer] = useState(false);
+      if (supabaseError) throw supabaseError;
+      setDecks(data || []);
+    } catch (err) {
+      console.error('Load decks error:', err);
+      setError(`Fehler: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (user) loadAllData();
-  }, [user]);
+    loadDecks();
+  }, [user?.id]);
 
-  // --- DATA FETCHING ---
-  const loadAllData = async () => {
-    setLoading(true);
-    await fetchCards();
-    setLoading(false);
-  };
+  // Create Deck
+  const handleCreateDeck = async () => {
+    if (!newDeckName.trim() || !user) return;
+    try {
+      const { data, error } = await supabase
+        .from('decks')
+        .insert([{ name: newDeckName, user_id: user.id }])
+        .select()
+        .single();
 
-  const fetchCards = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('flashcards')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (data) {
-      const loadedCards = data as Flashcard[];
-      setCards(loadedCards);
-      
-      // Ordner extrahieren
-      const uniqueFolders = Array.from(new Set(loadedCards.map(c => c.folder).filter(Boolean) as string[])).sort();
-      setFolders(uniqueFolders);
-      
-      // Stats
-      const dueCount = loadedCards.filter(c => c.due_date <= new Date().toISOString()).length;
-      setStats({ total: loadedCards.length, due: dueCount });
+      if (error) throw error;
+      setDecks([data, ...decks]);
+      setNewDeckName('');
+      setIsCreatingMode(false);
+    } catch (err) {
+      setError('Fehler beim Erstellen des Decks');
     }
   };
 
-  // --- GRUPPIERUNG LOGIK (WICHTIG!) ---
-  // Wir bauen ein Objekt: { "Semester 1": ["Mathe", "Physik"], "Unsorted": ["Allgemein"] }
-  const groupedStructure = useMemo(() => {
-    const structure: GroupedData = {};
-    const unsortedCats = new Set<string>();
-
-    cards.forEach(card => {
-      if (card.folder) {
-        if (!structure[card.folder]) structure[card.folder] = [];
-        if (!structure[card.folder].includes(card.category)) {
-          structure[card.folder].push(card.category);
-        }
-      } else {
-        unsortedCats.add(card.category || 'Allgemein');
-      }
-    });
-
-    // Sortieren
-    Object.keys(structure).forEach(key => structure[key].sort());
-    
-    return {
-      folders: structure,
-      unsorted: Array.from(unsortedCats).sort()
-    };
-  }, [cards]);
-
-  // --- ACTIONS: RENAME / MOVE ---
-
-  const handleRename = async () => {
-    if (!settingsTarget || !renameValue.trim()) return;
-    const { type, name: oldName } = settingsTarget;
-    const newName = renameValue.trim();
-
-    if (newName === oldName) { setSettingsTarget(null); return; }
-
-    let error;
-    if (type === 'category') {
-      // Kategorie umbenennen: Update category column where category = oldName
-      const { error: err } = await supabase
-        .from('flashcards')
-        .update({ category: newName })
-        .eq('category', oldName)
-        .eq('user_id', user?.id);
-      error = err;
-    } else {
-      // Ordner umbenennen: Update folder column where folder = oldName
-      const { error: err } = await supabase
-        .from('flashcards')
-        .update({ folder: newName })
-        .eq('folder', oldName)
-        .eq('user_id', user?.id);
-      error = err;
-    }
-
-    if (!error) {
-      loadAllData();
-      setSettingsTarget(null);
-    } else {
-      alert("Fehler: " + error.message);
-    }
-  };
-
-  const handleMoveCategoryToFolder = async (folderName: string | null) => {
-    if (!settingsTarget || settingsTarget.type !== 'category') return;
-    
-    // Setze folder column für alle Karten dieser Kategorie
-    const { error } = await supabase
-      .from('flashcards')
-      .update({ folder: folderName }) // null = "Kein Ordner"
-      .eq('category', settingsTarget.name)
-      .eq('user_id', user?.id);
-
-    if (!error) {
-      loadAllData();
-      setSettingsTarget(null);
-    } else {
-      alert("Fehler beim Verschieben: " + error.message);
-    }
-  };
-
-  const deleteItem = async () => {
+  // Delete Deck
+  const handleDeleteDeck = async () => {
     if (!settingsTarget) return;
-    const { type, name } = settingsTarget;
-    
-    const msg = type === 'folder' 
-      ? `Ordner "${name}" löschen? Alle enthaltenen Fächer werden 'Unsortiert'. (Karten bleiben erhalten)`
-      : `Fach "${name}" und ALLE Karten darin löschen? (Unwiderruflich!)`;
+    if (!confirm(`Deck "${settingsTarget.name}" wirklich löschen? Alle Karten darin gehen verloren.`)) return;
 
-    if (!confirm(msg)) return;
-
-    if (type === 'folder') {
-      // Ordner löschen -> Karten behalten, folder auf NULL setzen
+    try {
       const { error } = await supabase
-        .from('flashcards')
-        .update({ folder: null })
-        .eq('folder', name)
-        .eq('user_id', user?.id);
-      if (!error) loadAllData();
-    } else {
-      // Fach löschen -> Karten löschen
-      const { error } = await supabase
-        .from('flashcards')
+        .from('decks')
         .delete()
-        .eq('category', name)
-        .eq('user_id', user?.id);
-      if (!error) loadAllData();
+        .eq('id', settingsTarget.id);
+
+      if (error) throw error;
+      setDecks(decks.filter((d) => d.id !== settingsTarget.id));
+      setSettingsTarget(null);
+    } catch (err) {
+      setError('Fehler beim Löschen');
     }
-    setSettingsTarget(null);
   };
 
-  // --- UI HELPERS ---
-  const toggleFolder = (f: string) => setExpandedFolders(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
-  const toggleCategory = (c: string) => setExpandedCategories(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
+  // Rename Deck
+  const handleRenameDeck = async (newName: string) => {
+    if (!settingsTarget || !newName.trim()) return;
+    try {
+      const { error } = await supabase
+        .from('decks')
+        .update({ name: newName })
+        .eq('id', settingsTarget.id);
 
-  // --- CREATION ---
-  const handleCreate = () => {
-    if (!newInput.trim()) return;
-    // Da wir keine separate Tabellen haben, erstellen wir "virtuelle" Einträge im UI
-    // Echte Persistenz passiert erst, wenn eine Karte erstellt wird. 
-    // Trick: Wir merken uns diese neuen leeren Container lokal, bis Daten kommen
-    // ODER wir lassen es wie beim letzten Mal (lokaler State)
-    if (isCreatingMode === 'folder') {
-        if(!folders.includes(newInput)) setFolders(prev => [...prev, newInput].sort());
-    } else if (isCreatingMode === 'category') {
-        // Fach wird bei "Unsortiert" angezeigt
+      if (error) throw error;
+      setDecks(decks.map((d) => (d.id === settingsTarget.id ? { ...d, name: newName } : d)));
+    } catch (err) {
+      console.error(err);
     }
-    setNewInput('');
-    setIsCreatingMode(null);
   };
 
-  // --- LERNEN & REST (wie vorher) ---
-  const startLearning = (filterType: 'all' | 'folder' | 'category', name?: string) => {
-    const now = new Date().toISOString();
-    let queue = cards.filter(c => c.due_date <= now);
-
-    if (filterType === 'folder') queue = queue.filter(c => c.folder === name);
-    if (filterType === 'category') queue = queue.filter(c => c.category === name);
-
-    if (queue.length === 0) { alert("Nichts fällig! 🎉"); return; }
-    
-    setLearningQueue(queue.sort(() => Math.random() - 0.5));
-    setCurrentCardIndex(0); setShowAnswer(false); setIsLearning(true);
-  };
-
-  const handleRate = async (grade: number) => {
-    const card = learningQueue[currentCardIndex];
-    let { interval, ease_factor, id } = card;
-    if (grade >= 3) {
-        if (interval === 0) interval = 1; else if (interval === 1) interval = 6; else interval = Math.round(interval * ease_factor);
-        ease_factor = Math.max(1.3, ease_factor + (0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02)));
-    } else { interval = 1; }
-    
-    const nextDueDate = new Date(); nextDueDate.setDate(nextDueDate.getDate() + interval);
-    await supabase.from('flashcards').update({ interval, ease_factor, due_date: nextDueDate.toISOString() }).eq('id', id);
-    
-    setShowAnswer(false);
-    if (currentCardIndex < learningQueue.length - 1) setCurrentCardIndex(p => p + 1);
-    else { setIsLearning(false); loadAllData(); }
-  };
-
-  const handleSaveSingleCard = async () => {
-    if (!newCardForm.front.trim() || !user) return;
-    const { error } = await supabase.from('flashcards').insert([{
-        user_id: user.id, front: newCardForm.front, back: newCardForm.back, category: targetCategoryForAdd,
-        folder: cards.find(c => c.category === targetCategoryForAdd)?.folder || null, // Ordner erben!
-        due_date: new Date().toISOString()
-    }]);
-    if (!error) { setIsAddModalOpen(false); loadAllData(); }
-  };
-  
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if(!file || !user) return;
-    setImportLoading(true);
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-        const content = ev.target?.result as string;
-        let newCards: any[] = [];
-        // ... (Import Logic wie zuvor, aber wir setzen folder!)
-        const folderToInherit = cards.find(c => c.category === targetCategoryForAdd)?.folder || null;
-        
-        if (file.name.endsWith('.json')) {
-            newCards = JSON.parse(content).map((c:any) => ({
-                user_id: user.id, front: c.front||c.question, back: c.back||c.answer, category: targetCategoryForAdd, folder: folderToInherit, due_date: new Date().toISOString()
-            }));
-        }
-        // ... Batch Insert ...
-        if(newCards.length > 0) await supabase.from('flashcards').insert(newCards);
-        setIsAddModalOpen(false); loadAllData(); setImportLoading(false);
-    };
-    reader.readAsText(file);
-  };
-  
-  // --- SUB-COMPONENT: CATEGORY ROW (Wiederverwendbar) ---
-  const CategoryRow = ({ cat, folderName }: { cat: string, folderName: string | null }) => {
-    const catCards = cards.filter(c => c.category === cat);
-    const dueCount = catCards.filter(c => c.due_date <= new Date().toISOString()).length;
-    const isOpen = expandedCategories.includes(cat);
-
-    return (
-        <div className="mb-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm hover:border-zinc-300 transition-all">
-            <div onClick={() => toggleCategory(cat)} className="p-4 flex items-center justify-between cursor-pointer select-none bg-zinc-50/50 dark:bg-zinc-950/30">
-                <div className="flex items-center gap-3">
-                    <ChevronRight size={18} className={`transition-transform text-zinc-400 ${isOpen ? 'rotate-90' : ''}`} />
-                    <span className="font-bold text-zinc-800 dark:text-zinc-200">{cat}</span>
-                    <span className="text-xs text-zinc-400 font-mono">({catCards.length})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    {dueCount > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{dueCount}</span>}
-                    <button onClick={(e) => { e.stopPropagation(); startLearning('category', cat); }} className="p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-cyan-500 hover:text-white rounded-lg transition-colors"><Brain size={16}/></button>
-                    <button onClick={(e) => { e.stopPropagation(); setRenameValue(cat); setSettingsTarget({ type: 'category', name: cat }); }} className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-lg"><Settings2 size={16}/></button>
-                </div>
-            </div>
-
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-                        <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                             <button onClick={() => { setTargetCategoryForAdd(cat); setIsAddModalOpen(true); }} className="flex items-center justify-center p-4 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-400 hover:text-cyan-500 hover:border-cyan-500 transition-all gap-2 text-sm font-bold"><Plus size={16}/> Karte hinzufügen</button>
-                             {catCards.map(c => (
-                                 <div key={c.id} className="p-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-100 dark:border-zinc-800 text-sm">
-                                     <div className="font-bold mb-1 truncate">{c.front}</div>
-                                     <div className="text-zinc-500 truncate">{c.back}</div>
-                                 </div>
-                             ))}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
+  const filteredDecks = useMemo(() => {
+    return decks.filter((deck) =>
+      deck.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  };
+  }, [decks, searchQuery]);
 
-
-  // --- MAIN RENDER ---
-  if (isLearning) {
-      /* ... (Lernansicht identisch zu vorher, hier gekürzt für Lesbarkeit) ... */
-      const currentCard = learningQueue[currentCardIndex];
-      return (
-        <div className="min-h-screen p-10 flex flex-col justify-center max-w-2xl mx-auto">
-            <div className="flex justify-between mb-4"><span className="font-bold text-zinc-500">{currentCardIndex+1}/{learningQueue.length}</span><button onClick={()=>setIsLearning(false)}><X/></button></div>
-            <div onClick={()=>setShowAnswer(!showAnswer)} className="min-h-[400px] flex items-center justify-center bg-white dark:bg-zinc-900 rounded-3xl border-2 cursor-pointer shadow-xl text-center p-10">
-                <div>
-                   <p className="text-xs font-black uppercase tracking-widest text-cyan-500 mb-4">{showAnswer ? 'Antwort' : 'Frage'}</p>
-                   <h2 className="text-3xl font-bold">{showAnswer ? currentCard.back : currentCard.front}</h2>
-                </div>
-            </div>
-            {showAnswer && <div className="grid grid-cols-4 gap-4 mt-6">{[0,3,4,5].map(g => <button key={g} onClick={()=>handleRate(g)} className="p-4 bg-zinc-800 text-white rounded-xl font-bold">{g===0?'Wdh':g===3?'Schwer':g===4?'Gut':'Einfach'}</button>)}</div>}
-        </div>
-      )
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+        <Loader2 className="animate-spin text-cyan-500 w-10 h-10" />
+      </div>
+    );
   }
 
   return (
-    <div className="p-4 md:p-10 max-w-5xl mx-auto pb-40 transition-colors relative">
+    // FIX: Layout w-full und padding angepasst
+    <div className="p-6 w-full max-w-full mx-auto min-h-screen pb-32">
       
-      <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center pt-14 lg:pt-0">
+      {/* Error Banner */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mb-6 p-4 bg-red-100 dark:bg-red-500/10 border border-red-300 dark:border-red-500/30 rounded-xl flex justify-between items-center"
+          >
+            <span className="text-red-800 dark:text-red-400 font-medium">{error}</span>
+            <button onClick={() => setError(null)}>
+              <X size={18} className="text-red-600" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
         <div>
-           <h1 className="text-4xl font-black tracking-tight flex items-center gap-2">Bibliothek 📚</h1>
-           <p className="text-zinc-500 font-medium mt-1">{stats.due} fällig • {stats.total} Gesamt</p>
+          <h1 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight flex items-center gap-3">
+             <Brain className="text-cyan-500" /> Lern-Decks
+          </h1>
+          <p className="text-zinc-600 dark:text-zinc-400 mt-2 font-medium">
+            Dein Wissen organisiert.
+          </p>
         </div>
-        <div className="flex gap-2">
-            <FlashcardImporter onImportSuccess={loadAllData} />
-            <button onClick={() => startLearning('all')} className="px-6 py-3 bg-cyan-500 text-white rounded-2xl font-bold shadow-lg shadow-cyan-500/20 active:scale-95 transition-all flex items-center gap-2"><Brain size={20}/> Start</button>
+
+        <div className="relative w-full md:w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+          <input
+            type="text"
+            placeholder="Suchen..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none text-zinc-900 dark:text-white transition-all"
+          />
         </div>
       </header>
 
-      {/* CREATE BAR */}
-      <div className="flex gap-4 mb-8">
-        {!isCreatingMode ? (
-            <>
-                <button onClick={() => setIsCreatingMode('folder')} className="flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-900 rounded-xl text-sm font-bold hover:bg-zinc-200 transition-colors"><FolderPlus size={16}/> Ordner erstellen</button>
-                <button onClick={() => setIsCreatingMode('category')} className="flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-900 rounded-xl text-sm font-bold hover:bg-zinc-200 transition-colors"><Layers size={16}/> Fach erstellen</button>
-            </>
-        ) : (
-            <div className="flex items-center gap-2 w-full max-w-md animate-in slide-in-from-left-4">
-                <input autoFocus value={newInput} onChange={e=>setNewInput(e.target.value)} placeholder={isCreatingMode === 'folder' ? "Ordner Name (z.B. Semester 1)" : "Fach Name (z.B. Chemie)"} className="flex-1 px-4 py-2 rounded-xl bg-white dark:bg-zinc-900 border-2 border-cyan-500 outline-none font-bold" />
-                <button onClick={handleCreate} className="p-2 bg-cyan-500 text-white rounded-xl"><Save size={20}/></button>
-                <button onClick={() => setIsCreatingMode(null)} className="p-2 text-zinc-400 hover:text-zinc-600"><X size={20}/></button>
-            </div>
-        )}
-      </div>
-
-      <div className="space-y-8">
+      {/* Action Buttons */}
+      <div className="flex gap-4 mb-10 overflow-x-auto pb-2">
+        <button
+          onClick={() => setIsCreatingMode(true)}
+          className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all text-zinc-900 dark:text-zinc-300 whitespace-nowrap"
+        >
+          <FolderPlus size={18} className="text-cyan-500" /> Neues Deck
+        </button>
         
-        {/* 1. ORDNER RENDERN */}
-        {Object.entries(groupedStructure.folders).map(([folderName, categories]) => {
-           const isOpen = expandedFolders.includes(folderName);
-           return (
-             <div key={folderName} className="border-l-4 border-zinc-200 dark:border-zinc-800 pl-4 md:pl-6 py-2">
-                {/* Folder Header */}
-                <div className="flex items-center justify-between mb-4 group">
-                    <div onClick={() => toggleFolder(folderName)} className="flex items-center gap-3 cursor-pointer select-none">
-                        {isOpen ? <FolderOpen className="text-cyan-500" size={24}/> : <Folder className="text-zinc-400 group-hover:text-cyan-500 transition-colors" size={24}/>}
-                        <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">{folderName}</h2>
-                        <span className="text-xs font-bold bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-md text-zinc-500">{categories.length} Fächer</span>
-                    </div>
-                    <button onClick={() => { setRenameValue(folderName); setSettingsTarget({ type: 'folder', name: folderName }); }} className="opacity-0 group-hover:opacity-100 p-2 text-zinc-400 hover:text-zinc-600 transition-opacity"><Settings2 size={18}/></button>
-                </div>
-
-                {/* Folder Content */}
-                <AnimatePresence>
-                    {isOpen && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                             {categories.map(cat => (
-                                 <CategoryRow key={cat} cat={cat} folderName={folderName} />
-                             ))}
-                             {categories.length === 0 && <p className="text-sm text-zinc-400 italic mb-4">Dieser Ordner ist leer. Verschiebe Fächer hierher.</p>}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-             </div>
-           )
-        })}
-
-        {/* 2. UNSORTIERTE FÄCHER RENDERN */}
-        {groupedStructure.unsorted.length > 0 && (
-            <div className="mt-8">
-                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-4 ml-1">Unsortierte Fächer</h3>
-                {groupedStructure.unsorted.map(cat => (
-                    <CategoryRow key={cat} cat={cat} folderName={null} />
-                ))}
-            </div>
-        )}
+        {/* FIX: Button aktiviert den Importer State */}
+        <button
+          onClick={() => setIsImporting(true)}
+          className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all text-zinc-900 dark:text-zinc-300 whitespace-nowrap"
+        >
+           <Upload size={18} className="text-purple-500" /> Importieren
+        </button>
       </div>
 
-      {/* --- SETTINGS MODAL (Rename / Move / Delete) --- */}
-      {settingsTarget && (
-         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-             <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800 animate-in zoom-in-95">
-                 <div className="flex justify-between items-center mb-6">
-                     <h3 className="text-lg font-black">{settingsTarget.type === 'folder' ? 'Ordner' : 'Fach'} bearbeiten</h3>
-                     <button onClick={() => setSettingsTarget(null)}><X size={20} className="text-zinc-400"/></button>
-                 </div>
-                 
-                 <div className="space-y-4">
-                     {/* 1. Rename */}
-                     <div>
-                         <label className="text-xs font-bold text-zinc-400 uppercase">Umbenennen</label>
-                         <div className="flex gap-2 mt-1">
-                             <input value={renameValue} onChange={e => setRenameValue(e.target.value)} className="flex-1 px-3 py-2 bg-zinc-100 dark:bg-zinc-950 rounded-lg border-none font-bold outline-none focus:ring-2 focus:ring-cyan-500" />
-                             <button onClick={handleRename} className="p-2 bg-cyan-500 text-white rounded-lg"><Save size={18}/></button>
-                         </div>
-                     </div>
+      {/* FIX: Conditional Rendering für den Importer */}
+      <AnimatePresence>
+        {isImporting && (
+           <FlashcardImporter 
+              onImportSuccess={() => {
+                loadDecks();
+                setIsImporting(false);
+              }} 
+              onClose={() => setIsImporting(false)} 
+           />
+        )}
+      </AnimatePresence>
 
-                     {/* 2. Move (Only for Categories) */}
-                     {settingsTarget.type === 'category' && (
-                         <div>
-                            <label className="text-xs font-bold text-zinc-400 uppercase">In Ordner verschieben</label>
-                            <select 
-                               value={folders.find(f => groupedStructure.folders[f]?.includes(settingsTarget.name)) || ''}
-                                onChange={(e) => { const val = e.target.value; setMoveToFolderValue(val); handleMoveCategoryToFolder(val || null); }}
-                                className="w-full mt-1 px-3 py-2 bg-zinc-100 dark:bg-zinc-950 rounded-lg font-bold outline-none cursor-pointer"
-                            >
-                                <option value="">(Kein Ordner)</option>
-                                {folders.map(f => <option key={f} value={f}>{f}</option>)}
-                            </select>
-                         </div>
-                     )}
-                     
-                     <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-4" />
-                     
-                     {/* 3. Delete */}
-                     <button onClick={deleteItem} className="w-full py-3 bg-red-50 dark:bg-red-900/10 text-red-500 font-bold rounded-xl hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors flex items-center justify-center gap-2">
-                         <Trash2 size={18}/> Löschen
-                     </button>
-                 </div>
-             </div>
-         </div>
-      )}
+      {/* Create Deck Form */}
+      <AnimatePresence>
+        {isCreatingMode && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mb-8 p-4 bg-cyan-50 dark:bg-cyan-900/10 border border-cyan-200 dark:border-cyan-500/30 rounded-2xl flex gap-4"
+          >
+            <input
+              autoFocus
+              value={newDeckName}
+              onChange={(e) => setNewDeckName(e.target.value)}
+              placeholder="Deck Name..."
+              className="flex-1 bg-transparent border-none outline-none font-bold text-zinc-900 dark:text-white placeholder:text-zinc-500"
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateDeck()}
+            />
+            <button onClick={handleCreateDeck} className="text-cyan-600 font-bold">Speichern</button>
+            <button onClick={() => setIsCreatingMode(false)}><X size={18} /></button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* --- ADD CARD MODAL (Reuse from before) --- */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-zinc-200 dark:border-zinc-800">
-             <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-950">
-                <h3 className="text-xl font-black">Zu "{targetCategoryForAdd}" hinzufügen</h3>
-                <button onClick={() => setIsAddModalOpen(false)}><X size={20}/></button>
-             </div>
-             <div className="p-6">
-                <div className="flex gap-2 mb-6 p-1 bg-zinc-100 dark:bg-zinc-950 rounded-xl">
-                   <button onClick={() => setAddMode('single')} className={`flex-1 py-2 rounded-lg text-sm font-bold ${addMode === 'single' ? 'bg-white dark:bg-zinc-800 shadow-sm text-cyan-600' : 'text-zinc-500'}`}>Einzeln</button>
-                   <button onClick={() => setAddMode('import')} className={`flex-1 py-2 rounded-lg text-sm font-bold ${addMode === 'import' ? 'bg-white dark:bg-zinc-800 shadow-sm text-cyan-600' : 'text-zinc-500'}`}>Import</button>
-                </div>
-                {addMode === 'single' ? (
-                  <div className="space-y-4">
-                    <textarea autoFocus value={newCardForm.front} onChange={e => setNewCardForm({...newCardForm, front: e.target.value})} className="w-full p-3 bg-zinc-50 dark:bg-zinc-950 rounded-xl font-bold" placeholder="Frage" />
-                    <textarea value={newCardForm.back} onChange={e => setNewCardForm({...newCardForm, back: e.target.value})} className="w-full p-3 bg-zinc-50 dark:bg-zinc-950 rounded-xl" placeholder="Antwort" />
-                    <button onClick={handleSaveSingleCard} className="w-full py-3 bg-cyan-500 text-white font-bold rounded-xl">Speichern</button>
-                  </div>
-                ) : (
-                  <div className="text-center p-8 border-2 border-dashed rounded-2xl cursor-pointer hover:bg-zinc-50" onClick={() => fileInputRef.current?.click()}>
-                     {importLoading ? <div className="animate-spin w-6 h-6 border-2 border-cyan-500 rounded-full mx-auto"/> : <Upload className="mx-auto text-zinc-300 mb-2"/>}
-                     <p className="font-bold text-zinc-500">Datei wählen</p>
-                     <input ref={fileInputRef} type="file" accept=".json,.csv" className="hidden" onChange={handleImport} />
-                  </div>
-                )}
-             </div>
-          </div>
+      {/* Decks Grid */}
+      {filteredDecks.length === 0 ? (
+        <div className="text-center py-16">
+          <Layers size={48} className="mx-auto text-zinc-400 mb-4" />
+          <h3 className="text-xl font-bold text-zinc-500">Keine Decks gefunden</h3>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredDecks.map((deck) => (
+            <DeckCard key={deck.id} deck={deck} onSettings={() => setSettingsTarget(deck)} />
+          ))}
         </div>
       )}
 
+      {/* Settings Modal */}
+      {settingsTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+           <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl w-full max-w-sm border border-zinc-200 dark:border-zinc-800 shadow-xl">
+              <h3 className="font-bold mb-4 text-zinc-900 dark:text-white">Deck bearbeiten</h3>
+              <input 
+                 className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3 rounded-xl mb-4 text-zinc-900 dark:text-white"
+                 defaultValue={settingsTarget.name}
+                 onBlur={(e) => handleRenameDeck(e.target.value)}
+              />
+              <button onClick={handleDeleteDeck} className="w-full text-red-500 font-bold mb-3 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-colors">
+                Löschen
+              </button>
+              <button onClick={() => setSettingsTarget(null)} className="w-full text-zinc-500 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">
+                Abbrechen
+              </button>
+           </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function DeckCard({ deck, onSettings }: { deck: Deck; onSettings: () => void; }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4 }}
+      className="group bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl hover:border-cyan-500/40 transition-all shadow-sm flex flex-col justify-between"
+    >
+      <div>
+        <div className="flex items-start justify-between mb-4">
+          <div className="h-12 w-12 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-500">
+            <Layers size={24} />
+          </div>
+          <button onClick={onSettings} className="opacity-0 group-hover:opacity-100 p-2 text-zinc-400 hover:text-white transition-opacity">
+            <Settings2 size={18} />
+          </button>
+        </div>
+        <h3 className="text-lg font-bold mb-2 text-zinc-900 dark:text-white truncate">{deck.name}</h3>
+      </div>
+      
+      <Link href={`/learn?deck=${encodeURIComponent(deck.id)}`}>
+        <button className="w-full bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-xl font-bold mt-4 transition-colors">
+          Lernen
+        </button>
+      </Link>
+    </motion.div>
   );
 }

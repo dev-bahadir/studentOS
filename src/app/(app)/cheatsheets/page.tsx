@@ -1,6 +1,5 @@
 'use client';
 
-import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -15,6 +14,9 @@ import {
   Table as TableIcon,
   X
 } from 'lucide-react';
+
+// Zentrale Glass-Klasse für Konsistenz mit Dashboard
+const glassClass = "bg-white/5 dark:bg-zinc-900/20 backdrop-blur-xl border border-white/10 dark:border-zinc-800/50 shadow-xl";
 
 type Sheet = {
   id: string;
@@ -79,7 +81,6 @@ export default function CheatSheetsPage() {
     if (!error) {
       setIsImporting(false);
       fetchSheets();
-      await supabase.rpc('increment_xp', { x: 10, row_id: user.id });
     }
   };
 
@@ -94,27 +95,26 @@ export default function CheatSheetsPage() {
     try {
       const data = JSON.parse(jsonString);
       const list = Array.isArray(data) ? data : [data];
-      if (list.length === 0) return <p className="p-8 text-zinc-500">Datei enthält keine Daten.</p>;
-      
+      if (list.length === 0) return <p className="p-8 text-zinc-500 dark:text-zinc-400">Keine Daten vorhanden.</p>;
       const headers = Object.keys(list[0]);
 
       return (
-        <div className="overflow-x-auto max-h-[500px] overflow-y-auto border-t border-zinc-200 dark:border-zinc-800">
-          <table className="min-w-full text-sm text-left tabular-nums">
-            <thead className="bg-zinc-100 dark:bg-zinc-800 sticky top-0 z-10">
+        <div className="overflow-x-auto border-t border-zinc-200 dark:border-zinc-800/50">
+          <table className="min-w-full text-sm text-left">
+            <thead className="bg-zinc-50/50 dark:bg-white/5 sticky top-0 backdrop-blur-sm">
               <tr>
                 {headers.map(h => (
-                  <th key={h} className="px-6 py-4 font-black uppercase tracking-widest text-[10px] text-zinc-500">
+                  <th key={h} className="px-6 py-4 font-black uppercase text-[10px] text-zinc-500 dark:text-zinc-400 tracking-widest">
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tbody className="divide-y divide-zinc-100 dark:divide-white/5">
               {list.map((row: any, i: number) => (
-                <tr key={i} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                <tr key={i} className="hover:bg-zinc-50/50 dark:hover:bg-white/5 transition-colors">
                   {headers.map(h => (
-                    <td key={h} className="px-6 py-4 text-zinc-600 dark:text-zinc-400 font-medium border-zinc-100 dark:border-zinc-800">
+                    <td key={h} className="px-6 py-4 text-zinc-600 dark:text-zinc-300 font-medium">
                       {typeof row[h] === 'object' ? JSON.stringify(row[h]) : String(row[h])}
                     </td>
                   ))}
@@ -125,26 +125,35 @@ export default function CheatSheetsPage() {
         </div>
       );
     } catch (e) {
-      return <div className="p-8 text-red-500 font-mono text-xs">JSON Error: Parsing failed.</div>;
+      return <div className="p-8 text-red-500 font-bold">JSON Parsing Error</div>;
     }
   };
 
   return (
-    <div className="p-4 md:p-10 max-w-5xl mx-auto min-h-screen pb-40 text-zinc-900 dark:text-zinc-100">
+    /* FIX: w-full max-w-full overflow-x-hidden für sauberes Layout */
+    <div className="w-full max-w-full p-4 md:p-8 lg:p-12 min-h-screen pb-40 bg-transparent text-zinc-900 dark:text-zinc-100 overflow-x-hidden">
       
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
-        <div>
-          <h1 className="text-4xl font-black tracking-tight flex items-center gap-3">
-             <TableIcon className="text-cyan-500" size={36} /> Cheat Sheets
+      <div className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12 p-8 rounded-[3rem] ${glassClass}`}>
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+          <h1 className="text-3xl md:text-5xl font-black tracking-tighter flex items-center gap-4 text-zinc-900 dark:text-white">
+             <div className="p-3 bg-cyan-500 rounded-2xl shadow-lg shadow-cyan-500/20">
+               <TableIcon className="text-white" size={32} />
+             </div>
+             Cheat Sheets
           </h1>
-          <p className="text-zinc-500 font-medium mt-1">{sheets.length} Referenzen griffbereit</p>
-        </div>
+          <div className="flex items-center gap-2 mt-2">
+             <span className="text-zinc-500 dark:text-zinc-400 font-bold text-sm uppercase tracking-widest">{sheets.length} Referenzen</span>
+             <div className="h-1 w-1 bg-zinc-400 rounded-full" />
+             <span className="text-zinc-500 dark:text-zinc-400 text-sm">Griffbereit</span>
+          </div>
+        </motion.div>
+
         <button 
           onClick={() => setIsImporting(!isImporting)}
-          className="w-full md:w-auto bg-zinc-900 dark:bg-panel text-white dark:text-ink px-8 py-4 rounded-2xl font-black shadow-xl hover:scale-[1.03] active:scale-95 transition-all flex items-center justify-center gap-2"
+          className="w-full md:w-auto bg-zinc-900 dark:bg-white text-white dark:text-black px-8 py-4 rounded-2xl font-black shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
         >
-          {isImporting ? <><X size={20} /> Abbrechen</> : <><UploadCloud size={20} /> Upload</>}
+          {isImporting ? <><X size={20} /> Abbrechen</> : <><UploadCloud size={20} /> Sheet hochladen</>}
         </button>
       </div>
 
@@ -152,32 +161,21 @@ export default function CheatSheetsPage() {
       <AnimatePresence>
         {isImporting && (
           <motion.div 
-            initial={{ height: 0, opacity: 0, marginBottom: 0 }}
-            animate={{ height: 'auto', opacity: 1, marginBottom: 32 }}
-            exit={{ height: 0, opacity: 0, marginBottom: 0 }}
-            className="overflow-hidden"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden mb-12"
           >
-            <div className="border-4 border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 rounded-[3rem] p-12 flex flex-col items-center justify-center text-center">
-                <div className="w-20 h-20 bg-white dark:bg-zinc-800 rounded-3xl flex items-center justify-center shadow-sm mb-6">
-                    <FileType className="text-cyan-500" size={40} />
+            <div className={`border-4 border-dashed border-zinc-200 dark:border-zinc-700/50 rounded-[3rem] p-12 flex flex-col items-center text-center ${glassClass}`}>
+                <div className="p-6 bg-cyan-500/10 rounded-full mb-6">
+                   <FileType className="text-cyan-500" size={48} />
                 </div>
-                <h3 className="text-xl font-black mb-2">HTML oder JSON einspeisen</h3>
-                <p className="text-zinc-500 text-sm mb-8 max-w-xs mx-auto">
-                    JSON Dateien werden automatisch als Tabellen gerendert. HTML behält sein eigenes Layout.
-                </p>
+                <h3 className="text-2xl font-black mb-2 text-zinc-900 dark:text-white">HTML oder JSON Dateien</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 mb-8 max-w-md font-medium">Lade deine Dokumentationen oder Tabellen hoch. Sie werden sicher in deinem Tresor gespeichert.</p>
                 
-                <input 
-                    type="file" 
-                    accept=".html,.htm,.json" 
-                    onChange={handleFileUpload} 
-                    className="hidden" 
-                    id="sheet-upload" 
-                />
-                <label 
-                    htmlFor="sheet-upload" 
-                    className="bg-zinc-900 dark:bg-panel text-white dark:text-ink px-10 py-4 rounded-2xl font-black cursor-pointer shadow-lg hover:shadow-cyan-500/10 transition-all active:scale-95"
-                >
-                    Datei auswählen
+                <input type="file" accept=".html,.htm,.json" onChange={handleFileUpload} className="hidden" id="sheet-upload" />
+                <label htmlFor="sheet-upload" className="bg-cyan-500 text-white px-10 py-4 rounded-2xl font-bold cursor-pointer shadow-lg shadow-cyan-500/20 hover:bg-cyan-400 transition-all active:scale-95">
+                    Datei vom Computer wählen
                 </label>
             </div>
           </motion.div>
@@ -185,49 +183,54 @@ export default function CheatSheetsPage() {
       </AnimatePresence>
 
       {/* GRID */}
-      <div className="grid grid-cols-1 gap-6">
+      <div className="flex flex-col gap-6">
         {loading ? (
-            <div className="text-center py-20 flex flex-col items-center gap-4">
-                <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px]">Lade Tresor...</p>
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4" />
+              <p className="text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest text-xs">Lade Referenzen...</p>
             </div>
         ) : sheets.length === 0 ? (
-            <div className="text-center py-24 bg-zinc-50 dark:bg-zinc-900/30 rounded-[3rem] border border-zinc-200 dark:border-zinc-800">
-                <Info className="mx-auto text-zinc-300 dark:text-zinc-700 mb-4" size={48} />
-                <p className="text-zinc-500 font-bold tracking-tight">Dein Tresor ist leer.</p>
+            <div className={`text-center py-32 rounded-[3rem] border border-dashed border-zinc-200 dark:border-zinc-800 ${glassClass}`}>
+                <Info className="mx-auto text-zinc-300 dark:text-zinc-600 mb-4" size={48} />
+                <p className="text-zinc-500 dark:text-zinc-400 text-xl font-black">Noch keine Cheat Sheets vorhanden.</p>
+                <p className="text-zinc-400 text-sm mt-2">Lade oben dein erstes Sheet hoch.</p>
             </div>
         ) : (
             sheets.map((s) => (
-                <div key={s.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-md transition-all">
-                    <button 
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  key={s.id} 
+                  className={`rounded-[2.5rem] overflow-hidden transition-all duration-300 ${glassClass} hover:border-cyan-500/30 group`}
+                >
+                    <div 
                         onClick={() => setOpenId(openId === s.id ? null : s.id)}
-                        className="w-full flex justify-between items-center p-6 md:p-8 text-left group"
+                        className="w-full flex justify-between items-center p-6 md:p-8 cursor-pointer"
                     >
                         <div className="flex items-center gap-6">
-                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl shadow-inner ${s.format === 'json' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' : 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600'}`}>
-                                {s.format === 'json' ? <FileCode size={24} /> : <FileType size={24} />}
+                            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl shadow-lg ${s.format === 'json' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' : 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400'}`}>
+                                {s.format === 'json' ? <FileCode size={28} /> : <FileType size={28} />}
                             </div>
                             <div>
-                                <h3 className="font-black text-xl tracking-tight text-zinc-900 dark:text-zinc-100 leading-none">{s.title}</h3>
-                                <p className="text-zinc-400 text-[10px] mt-2 uppercase font-black tracking-[0.2em] flex items-center gap-2">
-                                    <span className={s.format === 'json' ? 'text-amber-500' : 'text-cyan-500'}>{s.format}</span> 
-                                    <span>•</span> 
-                                    {new Date(s.created_at).toLocaleDateString()}
-                                </p>
+                                <h3 className="font-black text-xl md:text-2xl text-zinc-900 dark:text-white tracking-tight group-hover:text-cyan-500 transition-colors">{s.title}</h3>
+                                <div className="flex items-center gap-3 mt-1">
+                                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${s.format === 'json' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-600' : 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600'}`}>{s.format}</span>
+                                  <span className="text-zinc-400 dark:text-zinc-500 text-xs font-bold">{new Date(s.created_at).toLocaleDateString()}</span>
+                                </div>
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
-                             <div 
+                             <button 
                                 onClick={(e) => deleteSheet(s.id, e)}
-                                className="w-12 h-12 flex items-center justify-center rounded-2xl text-zinc-300 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-500 transition-all"
+                                className="p-3 text-zinc-300 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"
                              >
-                                <Trash2 size={20} />
-                             </div>
-                             <div className={`transition-transform duration-500 p-2 bg-zinc-50 dark:bg-zinc-800 rounded-xl ${openId === s.id ? 'rotate-180 bg-cyan-500 text-white' : ''}`}>
+                                <Trash2 size={22} />
+                             </button>
+                             <div className={`p-3 rounded-xl transition-all duration-300 ${openId === s.id ? 'rotate-180 bg-cyan-500 text-white shadow-lg shadow-cyan-500/30' : 'bg-zinc-100 dark:bg-white/5 text-zinc-400'}`}>
                                 <ChevronDown size={20} />
                              </div>
                         </div>
-                    </button>
+                    </div>
 
                     <AnimatePresence>
                         {openId === s.id && (
@@ -235,27 +238,42 @@ export default function CheatSheetsPage() {
                                 initial={{ height: 0, opacity: 0 }} 
                                 animate={{ height: 'auto', opacity: 1 }} 
                                 exit={{ height: 0, opacity: 0 }}
-                                className="border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50"
+                                className="border-t border-zinc-100 dark:border-white/5 bg-zinc-50/30 dark:bg-black/20"
                             >
-                                <div className="p-0">
+                                <div className="p-4 md:p-8 max-h-[75vh] overflow-y-auto custom-scrollbar">
                                     {s.format === 'json' ? (
                                         renderJsonTable(s.content)
                                     ) : (
-                                        <div className="p-8 md:p-12 overflow-x-auto bg-white dark:bg-zinc-950">
-                                            {/* Scoped Styles für HTML Content */}
-                                            <div className="all-initial prose prose-zinc dark:prose-invert max-w-none">
+                                        <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md p-8 md:p-12 rounded-[2rem] border border-zinc-200 dark:border-white/10 shadow-inner">
+                                            <article className="prose prose-zinc dark:prose-invert max-w-none prose-img:rounded-2xl prose-headings:font-black prose-headings:tracking-tight prose-p:leading-relaxed">
                                                 <div dangerouslySetInnerHTML={{ __html: s.content }} />
-                                            </div>
+                                            </article>
                                         </div>
                                     )}
                                 </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
-                </div>
+                </motion.div>
             ))
         )}
       </div>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(161, 161, 170, 0.2);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(161, 161, 170, 0.4);
+        }
+      `}</style>
     </div>
   );
 }

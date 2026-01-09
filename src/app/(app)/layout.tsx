@@ -1,47 +1,56 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect } from 'react';
-import { Sidebar } from '@/components/Navigation';
+import { ReactNode } from 'react'
+import { useAuth } from '@/components/providers/AuthProvider'
+import { redirect, usePathname } from 'next/navigation' // WICHTIG: usePathname hinzufügen
+import { motion } from 'framer-motion'
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
+interface AppLayoutProps {
+  children: ReactNode
+}
 
-  // Verhindert Hydration-Fehler zwischen Server und Client
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+function AppLayoutContent({ children }: AppLayoutProps) {
+  const { user, loading } = useAuth()
+  const pathname = usePathname() // Aktuellen Pfad abrufen
 
-  if (!mounted) {
+  // Liste der Seiten, die OHNE Login erlaubt sind
+  const isAuthPage = 
+    pathname === '/login' || 
+    pathname === '/register' || 
+    pathname === '/reset-password' ||
+    pathname?.startsWith('/auth'); // Falls alte Links noch existieren
+
+  if (loading) {
     return (
-      <div className="h-screen bg-zinc-950 flex items-center justify-center text-zinc-500">
-        Initializing Interface...
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-white">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 1 }}
+          className="h-12 w-12 border-4 border-cyan-500 border-t-transparent rounded-full mb-6"
+        />
+        <h2 className="text-xl font-black tracking-widest uppercase animate-pulse">
+          ELECTRO BRAIN
+        </h2>
       </div>
-    );
+    )
+  }
+
+  // FIX: Redirect NUR dann, wenn User fehlt UND wir NICHT schon auf einer Auth-Page sind
+  if (!user && !isAuthPage) {
+    redirect('/login')
   }
 
   return (
-    <div className="flex h-[100dvh] w-full bg-zinc-950 overflow-hidden">
-      {/* Die Sidebar ist 'fixed'. 
-        Sie steuert ihr eigenes Erscheinen (Mobil via Burger, Desktop via lg:translate-x-0).
-      */}
-      <Sidebar />
-
-      {/* HAUPTINHALT:
-        - lg:pl-72 schafft exakt Platz für die 72er Breite (w-72) der Sidebar.
-        - flex-1 füllt den restlichen Bildschirm aus.
-      */}
-      <div className="flex-1 flex flex-col h-full lg:pl-72">
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 lg:pb-8">
-          {/* Zusätzlicher Abstand oben auf Mobilgeräten, 
-            damit der Burger-Button nichts verdeckt 
-          */}
-          <div className="h-16 lg:hidden" /> 
-          
-          <div className="max-w-7xl mx-auto w-full animate-in fade-in duration-700">
-            {children}
-          </div>
-        </main>
-      </div>
+    <div className="flex h-screen w-screen bg-slate-950 overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden w-full bg-slate-950">
+        {children}
+      </main>
     </div>
-  );
+  )
+}
+
+export default function AppLayout({ children }: AppLayoutProps) {
+  return (
+    <AppLayoutContent>{children}</AppLayoutContent>
+  )
 }

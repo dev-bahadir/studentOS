@@ -1,95 +1,261 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/providers/AuthProvider';
-import QuotePlayer from '@/components/QuotePlayer';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { 
-  Brain, FileText, Layers, Zap, Lock, Database, 
-  ChevronRight, Sparkles, Activity
+  Brain, FileText, Layers, Zap, Activity, Flame,
+  CheckCircle, Target, BarChart3, Quote, 
+  Plus, Trash2, Image as ImageIcon, Save, ChevronRight, ChevronLeft, Sparkles, Calendar
 } from 'lucide-react';
 
-const DISPLAY_IMAGES = [
-  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1000&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=1000&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=1000&auto=format&fit=crop",
+// ------------------------------------------------------------------
+// KONFIGURATION & KONSTANTEN
+// ------------------------------------------------------------------
+
+const LEVEL_THRESHOLD = 500; // Benötigte XP pro Level
+
+const DAILY_QUESTS = [
+  { id: 'study', label: '📚 5 Karten lernen', target: 5, current: 0, xp: 10, icon: Brain },
+  { id: 'read', label: '📖 1 Notiz lesen', target: 1, current: 0, xp: 5, icon: FileText },
+  { id: 'focus', label: '🔥 25 Min Fokus', target: 25, current: 0, xp: 15, icon: Flame },
+  { id: 'learn', label: '⭐ 3 Formeln lernen', target: 3, current: 0, xp: 8, icon: Sparkles },
 ];
 
-export default function Dashboard() {
-  // 1. Auth & Theme Hooks
+const LEARNING_TIPS = [
+  { emoji: '🧠', text: 'Dein Gehirn merkt sich 80% mehr, wenn du handschriftlich notierst.' },
+  { emoji: '⚡', text: 'Die erste Minute ist entscheidend - starte mit deinen schwächsten Decks.' },
+  { emoji: '🎯', text: '5-Minuten Sessions sind besser als keine. Qualität > Quantität.' },
+  { emoji: '🔥', text: 'Nach 25min solltest du 5min pausieren (Pomodoro-Technik).' },
+  { emoji: '💡', text: 'Spaced Repetition ist am effektivsten, wenn du 24h zwischen Sessions wartest.' },
+];
+
+const glassClass = "bg-white/5 dark:bg-zinc-900/20 backdrop-blur-xl border border-white/10 dark:border-zinc-800/50 shadow-xl";
+
+type UserQuote = {
+  id: string;
+  text: string;
+  title: string; 
+};
+
+type Exam = {
+  id: string;
+  title: string;
+  date: string;
+  type: string;
+};
+
+// ------------------------------------------------------------------
+// HELPER: LEVEL BERECHNUNG (Zentralisiert)
+// ------------------------------------------------------------------
+const calculateLevelStats = (totalXP: number) => {
+  const level = Math.floor(totalXP / LEVEL_THRESHOLD) + 1;
+  const currentLevelXP = totalXP % LEVEL_THRESHOLD;
+  const progress = Math.floor((currentLevelXP / LEVEL_THRESHOLD) * 100);
+  return { level, currentLevelXP, progress, totalXP };
+};
+
+// ------------------------------------------------------------------
+// HAUPTKOMPONENTE
+// ------------------------------------------------------------------
+
+export default function SuperDashboard() {
   const { user, loading: authLoading } = useAuth();
   const { fullName, isInitialLoading: themeLoading } = useTheme();
   
-  // 2. States
+  // --- STATE ---
   const [stats, setStats] = useState({ decks: 0, cards: 0, notes: 0 });
-  const [xpData, setXpData] = useState({ xp: 0, level: 1, progress: 0, nextLevelXp: 500 });
-  const [isApproved, setIsApproved] = useState<boolean | null>(null);
-  const [dataLoading, setDataLoading] = useState(true);
-  const [currentImg, setCurrentImg] = useState(0);
-  const [formulas, setFormulas] = useState<any[]>([]);
+  
+  // XP State initialisiert mit 0
+  const [xpData, setXpData] = useState({ xp: 0, level: 1, progress: 0, currentLevelXP: 0 });
+  
+  const [analytics, setAnalytics] = useState({
+    cardStates: { new: 0, learning: 0, review: 0, mastered: 0 }
+  });
+  
+  const [quests, setQuests] = useState(DAILY_QUESTS);
   const [jsonInput, setJsonInput] = useState('');
   const [importing, setImporting] = useState(false);
+  const [nextExam, setNextExam] = useState<Exam | null>(null);
 
-  // 3. Data Fetching
+  // Widget States
+  const [currentTipIndex, setCurrentTipIndex] = useState(0);
+  const [myQuotes, setMyQuotes] = useState<UserQuote[]>([
+    { id: '1', text: 'Der beste Weg, die Zukunft vorherzusagen, ist, sie zu erschaffen.', title: 'Motivation' }
+  ]);
+  const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
+  const [isEditingQuote, setIsEditingQuote] = useState(false);
+  const [tempQuoteText, setTempQuoteText] = useState('');
+  const [tempQuoteTitle, setTempQuoteTitle] = useState('');
+  const [dashboardImage, setDashboardImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ------------------------------------------------------------------
+  // DATEN LADEN
+  // ------------------------------------------------------------------
   const fetchAllData = useCallback(async (userId: string) => {
     try {
-      // WICHTIG: Wenn die Tabellen in Supabase noch nicht existieren, crasht das hier!
-      const [profileRes, decksRes, cardsRes, notesRes, formulasRes] = await Promise.all([
-        supabase.from('profiles').select('xp, is_approved').eq('id', userId).single(),
+      const today = new Date().toISOString().split('T')[0];
+
+      const [profileRes, decksRes, notesRes, flashcardsRes, nextExamRes] = await Promise.all([
+        supabase.from('profiles').select('xp').eq('id', userId).single(),
         supabase.from('decks').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-        supabase.from('flashcards').select('*', { count: 'exact', head: true }).eq('user_id', userId),
         supabase.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-        supabase.from('formulas').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(5)
+        supabase.from('flashcards').select('state').eq('user_id', userId),
+        supabase.from('exams').select('*').eq('user_id', userId).gte('date', today).order('date', { ascending: true }).limit(1).maybeSingle()
       ]);
 
+      // 1. XP & Level berechnen (mit Helper)
       if (profileRes.data) {
-        const currentXP = profileRes.data.xp || 0;
-        const LEVEL_THRESHOLD = 500;
-        setIsApproved(profileRes.data.is_approved);
-        
-        setXpData({ 
-          xp: currentXP, 
-          level: Math.floor(currentXP / LEVEL_THRESHOLD) + 1, 
-          progress: Math.floor(((currentXP % LEVEL_THRESHOLD) / LEVEL_THRESHOLD) * 100),
-          nextLevelXp: LEVEL_THRESHOLD
+        const calculated = calculateLevelStats(profileRes.data.xp || 0);
+        setXpData({
+            xp: calculated.totalXP,
+            level: calculated.level,
+            progress: calculated.progress,
+            currentLevelXP: calculated.currentLevelXP
         });
       }
 
+      // 2. Flashcard Logik
+      const allCards = flashcardsRes.data || [];
+      const totalCards = allCards.length;
+
+      setAnalytics({
+        cardStates: {
+          new: allCards.filter(c => c.state === 0 || c.state === null).length,
+          learning: allCards.filter(c => c.state === 1).length,
+          review: allCards.filter(c => c.state === 2).length,
+          mastered: allCards.filter(c => c.state === 3).length, 
+        }
+      });
+
+      // 3. Stats setzen
       setStats({
         decks: decksRes.count || 0,
-        cards: cardsRes.count || 0,
+        cards: totalCards,
         notes: notesRes.count || 0
       });
 
-      if (formulasRes.data) setFormulas(formulasRes.data);
+      // 4. Exam
+      if (nextExamRes.data) setNextExam(nextExamRes.data);
+
     } catch (err) {
       console.error("Dashboard Fetch Error:", err);
-    } finally {
-      setDataLoading(false);
     }
   }, []);
 
-  // 4. Effects
+  // ------------------------------------------------------------------
+  // EFFECTS
+  // ------------------------------------------------------------------
   useEffect(() => {
-    if (user?.id) {
-      fetchAllData(user.id);
-    } else if (!authLoading) {
-      setDataLoading(false);
-    }
-  }, [user?.id, authLoading, fetchAllData]);
+    if (user?.id) fetchAllData(user.id);
+  }, [user?.id, fetchAllData]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentImg((prev) => (prev + 1) % DISPLAY_IMAGES.length);
-    }, 30000);
-    return () => clearInterval(interval);
+    const tipInterval = setInterval(() => {
+      setCurrentTipIndex((prev) => (prev + 1) % LEARNING_TIPS.length);
+    }, 10000); 
+    return () => clearInterval(tipInterval);
   }, []);
 
-  // 5. Handlers
+  useEffect(() => {
+    const savedImg = localStorage.getItem('electro_dashboard_img');
+    if (savedImg) setDashboardImage(savedImg);
+    
+    const savedQuotes = localStorage.getItem('electro_user_quotes');
+    if (savedQuotes) {
+        const parsed = JSON.parse(savedQuotes);
+        if (parsed.length > 0) setMyQuotes(parsed);
+    }
+  }, []);
+
+  // ------------------------------------------------------------------
+  // HANDLERS (XP Logic FIXED)
+  // ------------------------------------------------------------------
+  const toggleQuestCompletion = async (questId: string) => {
+    if (!user) return;
+
+    const questIndex = quests.findIndex(q => q.id === questId);
+    if (questIndex === -1) return;
+    
+    const quest = quests[questIndex];
+    const wasComplete = quest.current >= quest.target;
+    
+    const newCurrent = wasComplete ? 0 : quest.target;
+
+    // 1. UI Status Update
+    const newQuests = [...quests];
+    newQuests[questIndex] = { ...quest, current: newCurrent };
+    setQuests(newQuests);
+
+    // 2. XP & Level Update (Nur bei Abschluss)
+    if (!wasComplete) {
+        await supabase.rpc('increment_xp', { x: quest.xp, row_id: user.id });
+        
+        // FIX: Wir berechnen das Level komplett neu basierend auf dem neuen Total
+        const newTotalXP = xpData.xp + quest.xp;
+        const calculated = calculateLevelStats(newTotalXP);
+        
+        setXpData({
+            xp: calculated.totalXP,
+            level: calculated.level, // Hier springt das Level um!
+            progress: calculated.progress,
+            currentLevelXP: calculated.currentLevelXP
+        });
+    }
+  };
+
+  const handleAddQuote = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newQuote = { id: Date.now().toString(), text: 'Neues Zitat hier...', title: 'Quelle / Titel' };
+    const updated = [...myQuotes, newQuote];
+    setMyQuotes(updated);
+    setCurrentQuoteIndex(updated.length - 1);
+    setIsEditingQuote(true);
+    setTempQuoteText(newQuote.text);
+    setTempQuoteTitle(newQuote.title);
+    localStorage.setItem('electro_user_quotes', JSON.stringify(updated));
+  };
+
+  const handleDeleteQuote = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (myQuotes.length <= 1) return alert("Ein Zitat muss mindestens bleiben!");
+    const updated = myQuotes.filter((_, i) => i !== currentQuoteIndex);
+    setMyQuotes(updated);
+    setCurrentQuoteIndex(0);
+    localStorage.setItem('electro_user_quotes', JSON.stringify(updated));
+  };
+
+  const startEditing = () => {
+    setTempQuoteText(myQuotes[currentQuoteIndex].text);
+    setTempQuoteTitle(myQuotes[currentQuoteIndex].title);
+    setIsEditingQuote(true);
+  };
+
+  const saveEditedQuote = () => {
+    const updated = [...myQuotes];
+    updated[currentQuoteIndex] = { ...updated[currentQuoteIndex], text: tempQuoteText, title: tempQuoteTitle };
+    setMyQuotes(updated);
+    localStorage.setItem('electro_user_quotes', JSON.stringify(updated));
+    setIsEditingQuote(false);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const b64 = reader.result as string;
+        setDashboardImage(b64);
+        localStorage.setItem('electro_dashboard_img', b64);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleBulkImport = async () => {
     if (!user?.id) return;
     try {
@@ -106,205 +272,305 @@ export default function Dashboard() {
       const { error } = await supabase.from('formulas').insert(formulasToInsert);
       if (error) throw error;
 
-      // XP Update via RPC (Stelle sicher, dass die SQL Funktion existiert!)
-      await supabase.rpc('increment_xp', { x: Math.min(formulasToInsert.length * 2, 50), row_id: user.id });
+      const xpGain = Math.min(formulasToInsert.length * 2, 50);
+      await supabase.rpc('increment_xp', { x: xpGain, row_id: user.id });
+      
+      // Update XP & Level
+      const newTotalXP = xpData.xp + xpGain;
+      const calculated = calculateLevelStats(newTotalXP);
+      setXpData({
+          xp: calculated.totalXP,
+          level: calculated.level,
+          progress: calculated.progress,
+          currentLevelXP: calculated.currentLevelXP
+      });
 
       setJsonInput('');
       await fetchAllData(user.id);
-      alert(`Erfolg! ${formulasToInsert.length} Formeln importiert.`);
+      alert(`✅ ${formulasToInsert.length} Datensätze importiert!`);
     } catch (err: any) {
-      alert("Fehler: " + err.message);
+      alert("❌ Fehler: " + err.message);
     } finally {
       setImporting(false);
     }
   };
 
-  // --- RENDERING GUARDS ---
+  const getDaysLeft = (targetDate: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(targetDate);
+    const diffTime = target.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
 
-  // 1. Wenn das System noch initialisiert (Auth oder Theme lädt)
-  if (authLoading || themeLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-white">
-        <div className="h-12 w-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-6" />
-        <h2 className="text-xl font-black tracking-widest uppercase animate-pulse">Initializing Interface...</h2>
-      </div>
-    );
-  }
+  if (authLoading || themeLoading) return null;
 
-  // 2. Wenn das System fertig ist, aber KEIN User gefunden wurde
-  if (!user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 p-10 text-center">
-        <Lock className="text-cyan-500 mb-6" size={48} />
-        <h2 className="text-2xl font-bold text-white mb-4">Neural Link Offline</h2>
-        <p className="text-zinc-400 mb-8">Deine Sitzung konnte nicht validiert werden.</p>
-        <Link href="/login" className="bg-white text-black px-10 py-4 rounded-2xl font-black uppercase hover:bg-cyan-500 transition-colors">
-          Zum Login
-        </Link>
-      </div>
-    );
-  }
-
-  // 3. Wenn User da ist, aber noch auf Freischaltung wartet
-  if (isApproved === false) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-6 text-center">
-        <div className="max-w-md bg-zinc-900 p-10 rounded-[3rem] border border-zinc-800 shadow-2xl">
-          <Activity className="mx-auto text-cyan-500 mb-6 animate-pulse" size={48} />
-          <h2 className="text-3xl font-black text-white mb-4 tracking-tight uppercase">Warteliste</h2>
-          <p className="text-zinc-500 leading-relaxed mb-8">
-            Dein Zugang zum ElectroBrain wird gerade vom Administrator validiert. Bitte hab einen Moment Geduld.
-          </p>
-          <button onClick={() => window.location.reload()} className="text-cyan-500 font-bold text-sm uppercase tracking-widest">Status prüfen</button>
-        </div>
-      </div>
-    );
-  }
-
-  // 4. DAS EIGENTLICHE DASHBOARD
   return (
-    <div className="min-h-screen bg-transparent p-4 md:p-10 pb-32 transition-colors duration-500">
-      <div className="max-w-5xl mx-auto">
-        
-        {/* HEADER & XP BAR */}
-        <header className="mb-10 bg-panel p-8 rounded-[2.5rem] shadow-sm border border-zinc-200 dark:border-zinc-800">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div>
-              <h1 className="text-3xl font-black text-ink tracking-tight leading-none">
-                Willkommen, <span className="text-cyan-500">{fullName || user?.email?.split('@')[0]}</span>!
-              </h1>
-              <div className="flex items-center gap-3 mt-3">
-                 <span className="bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
-                   Level {xpData.level}
-                 </span>
-                 <span className="text-zinc-400 text-xs font-bold uppercase tracking-tighter">{xpData.xp} XP Gesamt</span>
-              </div>
+    <div className="w-full max-w-[1600px] mx-auto p-6 md:p-10 lg:p-12 min-h-screen pb-40 bg-transparent text-zinc-900 dark:text-zinc-100 overflow-x-hidden">
+      
+      {/* 1. HEADER AREA */}
+      <header className={`mb-10 p-8 rounded-[3rem] ${glassClass}`}>
+        <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="w-full">
+            <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none">
+              Moin, <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">{fullName || user?.email?.split('@')[0]}</span>
+            </h1>
+            <div className="flex items-center gap-4 pt-4">
+               <span className="bg-cyan-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-cyan-500/20">
+                 Level {xpData.level}
+               </span>
+               <div className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 font-bold text-xs uppercase tracking-tight">
+                 <Activity size={14} className="text-cyan-500" />
+                 {xpData.xp} Neural XP
+               </div>
             </div>
-            
-            <div className="w-full md:w-64 space-y-2">
-              <div className="flex justify-between text-[10px] font-black text-zinc-400 uppercase tracking-tighter">
-                <span>Next Level</span>
-                <span>{xpData.xp % xpData.nextLevelXp} / {xpData.nextLevelXp} XP</span>
-              </div>
-              <div className="w-full bg-canvas rounded-full h-2.5 overflow-hidden shadow-inner border border-zinc-200/50 dark:border-zinc-700/50">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${xpData.progress}%` }}
-                  className="bg-gradient-to-r from-cyan-500 to-blue-600 h-full shadow-[0_0_10px_rgba(6,182,212,0.5)]" 
-                />
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* HERO GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-panel rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm flex flex-col justify-center min-h-[250px]">
-            <QuotePlayer />
           </div>
           
-          <div className="bg-zinc-950 rounded-[2.5rem] relative overflow-hidden group shadow-2xl h-[300px] md:h-auto border border-zinc-800">
-            <AnimatePresence mode='wait'>
-              <motion.div
-                key={currentImg}
-                initial={{ opacity: 0, scale: 1.1 }}
-                animate={{ opacity: 0.4, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 1.5 }}
-                className="absolute inset-0"
+          <div className="w-full md:w-96 space-y-4">
+            <div className="flex justify-between text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+              <span>Synchronisations-Fortschritt</span>
+              <span className="text-cyan-500">{xpData.currentLevelXP} / {LEVEL_THRESHOLD} XP</span>
+            </div>
+            <div className="w-full bg-black/10 dark:bg-white/5 rounded-full h-4 overflow-hidden border border-white/5 shadow-inner p-1">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${xpData.progress}%` }}
+                className="bg-gradient-to-r from-cyan-400 to-blue-600 h-full rounded-full shadow-[0_0_20px_rgba(34,211,238,0.5)]" 
+              />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* 2. TAGES MISSIONEN */}
+      <section className="mb-12">
+        <div className="flex items-center gap-4 mb-8">
+            <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20">
+                <Target className="text-amber-500" size={24} />
+            </div>
+            <h2 className="text-3xl font-black tracking-tight">Tages-Missionen</h2>
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {quests.map((quest) => {
+            const isComplete = quest.current >= quest.target;
+            return (
+              <motion.button
+                key={quest.id}
+                onClick={() => toggleQuestCompletion(quest.id)}
+                whileHover={{ y: -5 }}
+                whileTap={{ scale: 0.95 }}
+                className={`relative p-6 rounded-[2.5rem] border-2 transition-all text-left group ${
+                  isComplete
+                    ? 'bg-emerald-500/10 border-emerald-500/30'
+                    : `${glassClass} border-transparent hover:border-amber-500/30`
+                }`}
               >
-                <Image 
-                  src={DISPLAY_IMAGES[currentImg]} 
-                  alt="Visual Focus" 
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              </motion.div>
-            </AnimatePresence>
-            
-            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent p-10 flex flex-col justify-end">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="relative">
-                  <div className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse" />
-                  <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-cyan-500 animate-ping opacity-75" />
+                <div className="flex justify-between items-start mb-6">
+                  <div className={`p-3 rounded-2xl ${isComplete ? 'bg-emerald-500 text-white' : 'bg-white/5 text-amber-500'}`}>
+                    <quest.icon size={24} />
+                  </div>
+                  {isComplete && (
+                    <div className="bg-emerald-500 rounded-full p-1 shadow-lg shadow-emerald-500/40">
+                      <CheckCircle size={16} className="text-white" />
+                    </div>
+                  )}
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400">System Live</span>
-              </div>
-              <h2 className="text-white text-3xl font-black tracking-tighter">ElectroBrain <span className="text-zinc-500">v1.0</span></h2>
-            </div>
-          </div>
+                <h4 className="font-black text-lg mb-1">{quest.label}</h4>
+                <div className="flex justify-between items-end mb-4">
+                    <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">{quest.current} / {quest.target}</span>
+                    <span className={`text-[10px] font-black uppercase ${isComplete ? 'text-emerald-500' : 'text-amber-500'}`}>+{quest.xp} XP</span>
+                </div>
+                <div className="w-full h-1.5 bg-black/10 dark:bg-white/5 rounded-full overflow-hidden">
+                    <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(quest.current / quest.target) * 100}%` }}
+                        className={`h-full ${isComplete ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                    />
+                </div>
+              </motion.button>
+            );
+          })}
         </div>
+      </section>
 
-        {/* STATS TILES */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {[
-            { label: 'Lern-Decks', val: stats.decks, icon: Layers, href: '/flashcards' },
-            { label: 'Karten', val: stats.cards, icon: Brain, href: '/flashcards' },
-            { label: 'Notizen', val: stats.notes, icon: FileText, href: '/notes' }
-          ].map((item) => (
-            <Link key={item.label} href={item.href} className="group">
-              <div className="bg-panel p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 hover:border-cyan-500/40 transition-all hover:shadow-xl hover:-translate-y-1">
-                <div className="flex justify-between items-start mb-6 text-zinc-400 group-hover:text-cyan-500 transition-colors">
-                  <item.icon size={22} />
-                  <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+      {/* 3. CORE STATS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        {[
+          { label: 'Neural Decks', val: stats.decks, icon: Layers, href: '/learn', color: 'from-blue-500 to-cyan-400' },
+          { label: 'Total Cards', val: stats.cards, icon: Brain, href: '/learn', color: 'from-purple-500 to-pink-400' },
+          { label: 'Knowledge Base', val: stats.notes, icon: FileText, href: '/notes', color: 'from-emerald-500 to-teal-400' }
+        ].map((item) => (
+          <Link key={item.label} href={item.href} className="group">
+            <motion.div 
+              whileHover={{ y: -8 }}
+              className={`p-10 rounded-[3rem] transition-all relative overflow-hidden ${glassClass}`}
+            >
+              <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${item.color} opacity-[0.03] rounded-full -mr-16 -mt-16 blur-2xl group-hover:opacity-10 transition-opacity`} />
+              <div className="flex justify-between items-start mb-8">
+                <div className={`p-4 rounded-[1.5rem] bg-gradient-to-br ${item.color} text-white shadow-xl`}>
+                  <item.icon size={28} />
                 </div>
-                <p className="text-zinc-500 dark:text-zinc-400 font-black text-[10px] uppercase tracking-widest mb-1">{item.label}</p>
-                <h2 className="text-5xl font-black text-ink tracking-tighter">{item.val}</h2>
+                <ChevronRight size={24} className="text-zinc-300 dark:text-zinc-600 group-hover:translate-x-2 group-hover:text-cyan-500 transition-all" />
               </div>
-            </Link>
-          ))}
-        </div>
-
-        {/* WISSENS-TRESOR */}
-        <section className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-black text-ink tracking-tight flex items-center gap-3">
-              <Database className="text-cyan-500" size={24} /> Wissens-Tresor
-            </h2>
-            <Link href="/formulas" className="text-[10px] text-cyan-500 font-black uppercase tracking-[0.2em] hover:underline flex items-center gap-1">
-              Explorer <ChevronRight size={12} />
-            </Link>
-          </div>
-          <Link href="/formulas">
-            <div className="bg-gradient-to-br from-cyan-500/5 to-blue-600/5 p-8 rounded-[2.5rem] border border-cyan-500/20 flex items-center justify-between group active:scale-[0.99] transition-all">
-              <div className="flex items-center gap-6">
-                <div className="bg-panel p-4 rounded-2xl text-3xl shadow-sm group-hover:rotate-6 transition-transform border border-zinc-100 dark:border-zinc-800">⚛️</div>
-                <div>
-                  <p className="text-ink font-black text-lg">Formeln & Wissen</p>
-                  <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">
-                    {formulas.length > 0 ? `${formulas.length} Einträge verfügbar` : 'Keine Einträge vorhanden'}
-                  </p>
-                </div>
-              </div>
-              <div className="bg-zinc-900 dark:bg-panel text-white dark:text-ink p-4 rounded-2xl group-hover:translate-x-2 transition-all border border-zinc-800 dark:border-zinc-700">
-                <ChevronRight size={24} />
-              </div>
-            </div>
+              <p className="text-zinc-500 dark:text-zinc-400 font-black text-xs uppercase tracking-widest mb-2">{item.label}</p>
+              <h2 className="text-6xl font-black tracking-tighter">{item.val}</h2>
+            </motion.div>
           </Link>
-        </section>
-
-        {/* BULK IMPORT */}
-        <section className="p-10 bg-canvas rounded-[3rem] border border-dashed border-zinc-300 dark:border-zinc-800">
-          <div className="flex items-center gap-3 mb-8">
-             <Zap className="text-amber-500" size={24} />
-             <h2 className="text-xl font-black text-ink tracking-tight uppercase tracking-widest text-xs">NotebookLM Bulk-Import</h2>
-          </div>
-          <textarea
-            value={jsonInput}
-            onChange={(e) => setJsonInput(e.target.value)}
-            placeholder='Füge dein NotebookLM-JSON hier ein...'
-            className="w-full h-44 p-6 bg-panel border border-zinc-200 dark:border-zinc-800 rounded-[2rem] text-sm font-mono text-ink outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-zinc-400 shadow-inner"
-          />
-          <button
-            onClick={handleBulkImport}
-            disabled={importing || !jsonInput}
-            className="mt-8 w-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-6 rounded-2xl font-black text-lg transition-all disabled:opacity-50 active:scale-95 flex items-center justify-center gap-3 shadow-2xl hover:bg-black dark:hover:bg-zinc-100"
-          >
-            {importing ? 'Synchronisiere...' : <><Zap size={22} fill="currentColor" /> Daten einspeisen & XP sammeln</>}
-          </button>
-        </section>
+        ))}
       </div>
+
+      {/* 4. ANALYTICS & RADAR HUB */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+        
+        {/* FSRS Distribution */}
+        <div className={`p-10 rounded-[3rem] ${glassClass}`}>
+          <h3 className="text-2xl font-black mb-10 flex items-center gap-4">
+            <BarChart3 className="text-cyan-500" /> Neural Distribution
+          </h3>
+          <div className="grid grid-cols-2 gap-8">
+            {[
+                { label: 'Neu', val: analytics.cardStates.new, color: 'bg-green-500', icon: '📌' }, 
+                { label: 'Lernen', val: analytics.cardStates.learning, color: 'bg-blue-500', icon: '📚' }, 
+                { label: 'Review', val: analytics.cardStates.review, color: 'bg-cyan-500', icon: '⭐' }, 
+                { label: 'Meister', val: analytics.cardStates.mastered, color: 'bg-amber-500', icon: '👑' }
+            ].map((state) => {
+              // Berechnung der Breite in % relativ zur Gesamtanzahl (Minimum 2% damit man was sieht)
+              const percent = stats.cards > 0 ? (state.val / stats.cards) * 100 : 0;
+              const displayWidth = state.val > 0 ? Math.max(percent, 2) : 0;
+              
+              return (
+                <div key={state.label} className="space-y-3">
+                  <div className="flex justify-between items-end px-1">
+                    <span className="text-xs font-black uppercase text-zinc-500">{state.icon} {state.label}</span>
+                    <span className="text-lg font-black">{state.val}</span>
+                  </div>
+                  <div className="w-full h-2.5 bg-black/10 dark:bg-white/5 rounded-full overflow-hidden">
+                    <motion.div 
+                        initial={{ width: 0 }} 
+                        whileInView={{ width: `${displayWidth}%` }} 
+                        transition={{ duration: 1, type: "spring" }}
+                        className={`${state.color} h-full rounded-full shadow-lg`} 
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* INTEGRATED RADAR (NEXT EXAM) */}
+        <div className={`p-10 rounded-[3rem] ${glassClass} flex flex-col justify-between border-2 border-transparent ${nextExam ? 'border-red-500/20' : ''}`}>
+          <h3 className="text-2xl font-black mb-6 flex items-center gap-4">
+            <Target className="text-red-500" /> Next Up
+          </h3>
+          
+          {nextExam ? (
+             <div className="flex-1 flex flex-col justify-center items-center text-center space-y-6">
+                <div className="w-24 h-24 bg-red-500 text-white rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(239,68,68,0.4)] animate-pulse">
+                   <Calendar size={40} />
+                </div>
+                <div>
+                   <h4 className="text-3xl font-black text-zinc-900 dark:text-white mb-2">{nextExam.title}</h4>
+                   <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs">
+                      {new Date(nextExam.date).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' })}
+                   </p>
+                </div>
+                <div className="w-full bg-red-500/10 p-4 rounded-2xl border border-red-500/20">
+                   <p className="text-red-500 font-black text-xl">
+                      {getDaysLeft(nextExam.date)} Tage verbleibend
+                   </p>
+                </div>
+             </div>
+          ) : (
+             <div className="flex-1 flex flex-col justify-center items-center text-center opacity-50">
+                <Target size={48} className="text-zinc-500 mb-4" />
+                <p className="font-bold text-zinc-500">Keine Prüfungen in Sicht.</p>
+                <Link href="/radar" className="text-xs font-black uppercase tracking-widest text-cyan-500 mt-2 hover:underline">Termin hinzufügen</Link>
+             </div>
+          )}
+        </div>
+      </div>
+
+      {/* 5. WIDGET GRID */}
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-12">
+        
+        {/* PLAYER 1: QUOTES */}
+        <div className={`relative p-8 rounded-[3rem] flex flex-col justify-between ${glassClass} min-h-[420px] group`}>
+           <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+              <button onClick={handleDeleteQuote} className="p-2 bg-red-500/20 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={16} /></button>
+              <button onClick={handleAddQuote} className="p-2 bg-cyan-500/20 text-cyan-500 rounded-xl hover:bg-cyan-500 hover:text-white transition-all"><Plus size={16} /></button>
+           </div>
+           <div className="flex-1 flex flex-col justify-center">
+              <Quote className="text-cyan-500/30 mb-6" size={32} />
+              <AnimatePresence mode='wait'>
+                 {isEditingQuote ? (
+                    <motion.div key="edit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full space-y-4">
+                       <textarea autoFocus value={tempQuoteText} onChange={(e) => setTempQuoteText(e.target.value)} className="w-full h-32 bg-black/10 dark:bg-white/5 rounded-2xl p-4 resize-none outline-none font-medium" placeholder="Zitat..." />
+                       <input value={tempQuoteTitle} onChange={(e) => setTempQuoteTitle(e.target.value)} className="w-full bg-black/10 dark:bg-white/5 rounded-xl p-3 outline-none font-bold text-sm" placeholder="Titel/Quelle" />
+                       <button onClick={saveEditedQuote} className="w-full py-3 bg-cyan-500 text-white rounded-xl font-bold flex items-center justify-center gap-2"><Save size={16} /> Speichern</button>
+                    </motion.div>
+                 ) : (
+                    <motion.div key={currentQuoteIndex} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} onClick={startEditing} className="cursor-pointer hover:opacity-80 transition-opacity">
+                       <p className="text-2xl font-black leading-tight mb-8">"{myQuotes[currentQuoteIndex].text}"</p>
+                       <div className="flex items-center gap-3"><div className="h-1 w-8 bg-cyan-500 rounded-full" /><p className="text-xs font-black uppercase tracking-widest text-zinc-500">{myQuotes[currentQuoteIndex].title}</p></div>
+                    </motion.div>
+                 )}
+              </AnimatePresence>
+           </div>
+           {!isEditingQuote && (
+             <div className="flex justify-between items-center mt-8">
+                <button onClick={() => setCurrentQuoteIndex(p => (p-1+myQuotes.length)%myQuotes.length)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronLeft size={20} /></button>
+                <div className="flex gap-1">{myQuotes.map((_, i) => <div key={i} className={`h-1.5 rounded-full transition-all ${i === currentQuoteIndex ? 'w-6 bg-cyan-500' : 'w-1.5 bg-zinc-700'}`} />)}</div>
+                <button onClick={() => setCurrentQuoteIndex(p => (p+1)%myQuotes.length)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronRight size={20} /></button>
+             </div>
+           )}
+        </div>
+
+        {/* PLAYER 2: NEURO TIPPS */}
+        <div className={`relative p-8 rounded-[3rem] flex flex-col justify-center items-center text-center ${glassClass} border-purple-500/20 overflow-hidden min-h-[420px]`}>
+           <AnimatePresence mode='wait'>
+              <motion.div key={currentTipIndex} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="relative z-10 flex flex-col items-center">
+                 <div className="text-7xl mb-6 filter drop-shadow-[0_0_15px_rgba(168,85,247,0.4)]">{LEARNING_TIPS[currentTipIndex].emoji}</div>
+                 <p className="text-[10px] font-black text-purple-500 uppercase tracking-[0.3em] mb-4">Neuro-Hack #{currentTipIndex + 1}</p>
+                 <p className="text-xl font-bold leading-relaxed px-4">{LEARNING_TIPS[currentTipIndex].text}</p>
+              </motion.div>
+           </AnimatePresence>
+           <div className="absolute bottom-8 w-full flex justify-center gap-1 left-0">{LEARNING_TIPS.map((_, i) => <div key={i} className={`h-1 rounded-full transition-all ${i === currentTipIndex ? 'w-4 bg-purple-500' : 'w-1 bg-zinc-700'}`} />)}</div>
+        </div>
+
+        {/* PLAYER 3: IMAGE WIDGET */}
+        <div className={`relative rounded-[3rem] overflow-hidden group ${glassClass} min-h-[420px] flex items-center justify-center`}>
+           {dashboardImage ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={dashboardImage} alt="Dashboard Widget" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-4">
+                   <button onClick={() => fileInputRef.current?.click()} className="px-6 py-3 bg-white text-black rounded-xl font-bold flex items-center gap-2 transition-transform"><ImageIcon size={18} /> Ändern</button>
+                   <button onClick={() => { setDashboardImage(null); localStorage.removeItem('electro_dashboard_img'); }} className="px-6 py-3 bg-red-500 text-white rounded-xl font-bold flex items-center gap-2"><Trash2 size={18} /> Entfernen</button>
+                </div>
+              </>
+           ) : (
+              <div onClick={() => fileInputRef.current?.click()} className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors p-8 text-center">
+                 <div className="w-20 h-20 rounded-[2rem] border-2 border-dashed border-zinc-600 flex items-center justify-center mb-6 text-zinc-600"><ImageIcon size={32} /></div>
+                 <h4 className="font-black text-xl mb-2">Image Widget</h4>
+                 <p className="text-zinc-500 text-sm font-medium">PNG/JPEG hier hochladen</p>
+              </div>
+           )}
+           <input type="file" ref={fileInputRef} className="hidden" accept="image/png, image/jpeg, image/jpg" onChange={handleImageUpload} />
+        </div>
+      </section>
+
+      {/* 6. SYNC AREA */}
+      <motion.section initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} className={`p-10 rounded-[4rem] border-4 border-dashed border-zinc-200 dark:border-zinc-800/50 ${glassClass}`}>
+        <div className="flex items-center gap-5 mb-10">
+             <div className="p-4 bg-amber-500 rounded-[1.5rem] text-white shadow-xl shadow-amber-500/20"><Zap size={32} fill="currentColor" /></div>
+             <div><h2 className="text-3xl font-black tracking-tighter uppercase leading-none">Neural Link Sync</h2><p className="text-zinc-500 font-medium mt-1">Importiere NotebookLM Daten für sofortiges XP-Wachstum</p></div>
+        </div>
+        <textarea value={jsonInput} onChange={(e) => setJsonInput(e.target.value)} placeholder='JSON-Stream hier einfügen...' className="w-full h-64 p-8 bg-black/10 dark:bg-black/20 border-2 border-white/5 rounded-[2.5rem] text-sm font-mono text-cyan-400 outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-zinc-600 resize-none" />
+        <button onClick={handleBulkImport} disabled={importing || !jsonInput} className="mt-10 w-full bg-white dark:bg-cyan-500 text-black dark:text-white py-8 rounded-[2rem] font-black text-xl transition-all disabled:opacity-30 active:scale-[0.98] shadow-2xl hover:shadow-cyan-500/20 flex items-center justify-center gap-4">{importing ? "Lädt..." : "Neural Sync Initialisieren"}</button>
+      </motion.section>
+
     </div>
   );
 }
