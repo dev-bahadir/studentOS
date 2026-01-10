@@ -14,13 +14,13 @@ import {
   FileText,
   Sparkles,
   Target,
-  Hourglass,
+  Zap, // Geändert für Day Commander
   Table,
   Menu,
   X,
   Moon,
   Sun,
-  Zap
+  GraduationCap // Neu für Learn Mode
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useTheme } from '@/components/providers/ThemeProvider';
@@ -30,11 +30,11 @@ const routes = [
   { label: 'Second Brain', icon: BrainCircuit, href: '/notes' },
   { label: 'Tasks', icon: CheckSquare, href: '/tasks' }, 
   { label: 'Study', icon: BookOpen, href: '/flashcards' },
-  { label: 'Learn Mode', icon: Zap, href: '/learn' },
+  { label: 'Learn Mode', icon: GraduationCap, href: '/learn' }, // GraduationCap passt super zu "Learn"
+  { label: 'Klausur Radar', icon: Target, href: '/radar' },
+  { label: 'Day Commander', icon: Zap, href: '/planner' }, // Blitz-Icon für Fokus & Action
   { label: 'Zusammenfassungen', icon: FileText, href: '/summaries' },
   { label: 'AI Prompts', icon: Sparkles, href: '/prompts' },
-  { label: 'Klausur Radar', icon: Target, href: '/radar' },
-  { label: 'Fokus Zone', icon: Hourglass, href: '/focus' },
   { label: 'Cheat Sheets', icon: Table, href: '/cheatsheets' },
   { label: 'Settings', icon: Settings, href: '/settings' },
 ];
@@ -89,11 +89,10 @@ export function Sidebar() {
 
       {/* 3. SIDEBAR CONTAINER */}
       <aside className={cn(
-        // FIX: lg:sticky hinzugefügt, damit es im Flex-Layout Platz einnimmt
         "fixed left-0 top-0 z-50 h-[100dvh] w-72 flex flex-col transition-transform duration-300 ease-in-out",
         "bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-900 shadow-2xl lg:shadow-none",
-        "lg:sticky lg:top-0 lg:translate-x-0", // Desktop: Immer sichtbar & sticky
-        isOpen ? "translate-x-0" : "-translate-x-full" // Mobile: Rein/Raus
+        "lg:sticky lg:top-0 lg:translate-x-0", 
+        isOpen ? "translate-x-0" : "-translate-x-full" 
       )}>
         
         {/* Logo & Close Button */}
@@ -101,7 +100,7 @@ export function Sidebar() {
           <h1 className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-zinc-100 select-none">
             Electro<span className="text-cyan-500">Brain</span>
           </h1>
-          <button onClick={closeSidebar} className="lg:hidden text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+          <button onClick={closeSidebar} className="lg:hidden text-zinc-400 hover:text-zinc-900 dark:hover:white">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -116,8 +115,6 @@ export function Sidebar() {
                 href={route.href}
                 onClick={closeSidebar}
                 className={cn(
-                  // FIX: Hier war der Fehler! Ich habe die Container-Klassen entfernt.
-                  // Jetzt sind es nur Button-Klassen:
                   "group flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all",
                   isActive
                     ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 shadow-[inset_0_0_0_1px_rgba(6,182,212,0.2)]'
@@ -134,7 +131,7 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Footer */}
+        {/* Footer Settings & Theme Toggle */}
         <div className="p-4 m-4 mt-0 bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl border border-zinc-100 dark:border-zinc-800 space-y-2">
           
           <button 

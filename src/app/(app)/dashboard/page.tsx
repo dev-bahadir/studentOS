@@ -9,7 +9,8 @@ import { useTheme } from '@/components/providers/ThemeProvider';
 import { 
   Brain, FileText, Layers, Zap, Activity, Flame,
   CheckCircle, Target, BarChart3, Quote, 
-  Plus, Trash2, Image as ImageIcon, Save, ChevronRight, ChevronLeft, Sparkles, Calendar
+  Plus, Trash2, Image as ImageIcon, Save, ChevronRight, ChevronLeft, Sparkles, Calendar,
+  PlayCircle, Sun, Moon, Coffee // Coffee Import hinzugefügt
 } from 'lucide-react';
 
 // ------------------------------------------------------------------
@@ -49,13 +50,21 @@ type Exam = {
 };
 
 // ------------------------------------------------------------------
-// HELPER: LEVEL BERECHNUNG (Zentralisiert)
+// HELPERS
 // ------------------------------------------------------------------
 const calculateLevelStats = (totalXP: number) => {
   const level = Math.floor(totalXP / LEVEL_THRESHOLD) + 1;
   const currentLevelXP = totalXP % LEVEL_THRESHOLD;
   const progress = Math.floor((currentLevelXP / LEVEL_THRESHOLD) * 100);
   return { level, currentLevelXP, progress, totalXP };
+};
+
+const getDaysLeft = (targetDate: string) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(targetDate);
+  const diffTime = target.getTime() - today.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 
 // ------------------------------------------------------------------
@@ -68,10 +77,7 @@ export default function SuperDashboard() {
   
   // --- STATE ---
   const [stats, setStats] = useState({ decks: 0, cards: 0, notes: 0 });
-  
-  // XP State initialisiert mit 0
   const [xpData, setXpData] = useState({ xp: 0, level: 1, progress: 0, currentLevelXP: 0 });
-  
   const [analytics, setAnalytics] = useState({
     cardStates: { new: 0, learning: 0, review: 0, mastered: 0 }
   });
@@ -80,6 +86,7 @@ export default function SuperDashboard() {
   const [jsonInput, setJsonInput] = useState('');
   const [importing, setImporting] = useState(false);
   const [nextExam, setNextExam] = useState<Exam | null>(null);
+  const [activePlan, setActivePlan] = useState<any>(null);
 
   // Widget States
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
@@ -100,15 +107,15 @@ export default function SuperDashboard() {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      const [profileRes, decksRes, notesRes, flashcardsRes, nextExamRes] = await Promise.all([
+      const [profileRes, decksRes, notesRes, flashcardsRes, nextExamRes, planRes] = await Promise.all([
         supabase.from('profiles').select('xp').eq('id', userId).single(),
         supabase.from('decks').select('*', { count: 'exact', head: true }).eq('user_id', userId),
         supabase.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', userId),
         supabase.from('flashcards').select('state').eq('user_id', userId),
-        supabase.from('exams').select('*').eq('user_id', userId).gte('date', today).order('date', { ascending: true }).limit(1).maybeSingle()
+        supabase.from('exams').select('*').eq('user_id', userId).gte('date', today).order('date', { ascending: true }).limit(1).maybeSingle(),
+        supabase.from('daily_plans').select('*').eq('user_id', userId).eq('date', today).maybeSingle()
       ]);
 
-      // 1. XP & Level berechnen (mit Helper)
       if (profileRes.data) {
         const calculated = calculateLevelStats(profileRes.data.xp || 0);
         setXpData({
@@ -119,10 +126,7 @@ export default function SuperDashboard() {
         });
       }
 
-      // 2. Flashcard Logik
       const allCards = flashcardsRes.data || [];
-      const totalCards = allCards.length;
-
       setAnalytics({
         cardStates: {
           new: allCards.filter(c => c.state === 0 || c.state === null).length,
@@ -132,24 +136,20 @@ export default function SuperDashboard() {
         }
       });
 
-      // 3. Stats setzen
       setStats({
         decks: decksRes.count || 0,
-        cards: totalCards,
+        cards: allCards.length,
         notes: notesRes.count || 0
       });
 
-      // 4. Exam
       if (nextExamRes.data) setNextExam(nextExamRes.data);
+      if (planRes.data) setActivePlan(planRes.data);
 
     } catch (err) {
       console.error("Dashboard Fetch Error:", err);
     }
   }, []);
 
-  // ------------------------------------------------------------------
-  // EFFECTS
-  // ------------------------------------------------------------------
   useEffect(() => {
     if (user?.id) fetchAllData(user.id);
   }, [user?.id, fetchAllData]);
@@ -172,36 +172,25 @@ export default function SuperDashboard() {
     }
   }, []);
 
-  // ------------------------------------------------------------------
-  // HANDLERS (XP Logic FIXED)
-  // ------------------------------------------------------------------
   const toggleQuestCompletion = async (questId: string) => {
     if (!user) return;
-
     const questIndex = quests.findIndex(q => q.id === questId);
     if (questIndex === -1) return;
-    
     const quest = quests[questIndex];
     const wasComplete = quest.current >= quest.target;
-    
     const newCurrent = wasComplete ? 0 : quest.target;
 
-    // 1. UI Status Update
     const newQuests = [...quests];
     newQuests[questIndex] = { ...quest, current: newCurrent };
     setQuests(newQuests);
 
-    // 2. XP & Level Update (Nur bei Abschluss)
     if (!wasComplete) {
         await supabase.rpc('increment_xp', { x: quest.xp, row_id: user.id });
-        
-        // FIX: Wir berechnen das Level komplett neu basierend auf dem neuen Total
         const newTotalXP = xpData.xp + quest.xp;
         const calculated = calculateLevelStats(newTotalXP);
-        
         setXpData({
             xp: calculated.totalXP,
-            level: calculated.level, // Hier springt das Level um!
+            level: calculated.level,
             progress: calculated.progress,
             currentLevelXP: calculated.currentLevelXP
         });
@@ -275,7 +264,6 @@ export default function SuperDashboard() {
       const xpGain = Math.min(formulasToInsert.length * 2, 50);
       await supabase.rpc('increment_xp', { x: xpGain, row_id: user.id });
       
-      // Update XP & Level
       const newTotalXP = xpData.xp + xpGain;
       const calculated = calculateLevelStats(newTotalXP);
       setXpData({
@@ -295,14 +283,6 @@ export default function SuperDashboard() {
     }
   };
 
-  const getDaysLeft = (targetDate: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const target = new Date(targetDate);
-    const diffTime = target.getTime() - today.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
-
   if (authLoading || themeLoading) return null;
 
   return (
@@ -312,8 +292,8 @@ export default function SuperDashboard() {
       <header className={`mb-10 p-8 rounded-[3rem] ${glassClass}`}>
         <div className="flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="w-full">
-            <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none">
-              Assalamu Alaikum wa Rahmatullahi wa Barakatuh , <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">{fullName || user?.email?.split('@')[0]}</span>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none text-zinc-900 dark:text-white">
+              Assalamu Alaikum, <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">{fullName || user?.email?.split('@')[0]}</span>
             </h1>
             <div className="flex items-center gap-4 pt-4">
                <span className="bg-cyan-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-cyan-500/20">
@@ -342,13 +322,56 @@ export default function SuperDashboard() {
         </div>
       </header>
 
-      {/* 2. TAGES MISSIONEN */}
+      {/* 2. DAY COMMANDER HUD */}
+      <section className="mb-12">
+        <div className="flex items-center gap-4 mb-6">
+            <div className="p-3 bg-cyan-500/10 rounded-2xl border border-cyan-500/20 text-cyan-500">
+                <Zap size={24} fill="currentColor" />
+            </div>
+            <h2 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-zinc-100">Day Commander</h2>
+        </div>
+
+        <Link href="/planner">
+            <motion.div 
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                className={`p-8 rounded-[3rem] ${glassClass} border-l-8 ${activePlan ? 'border-cyan-500' : 'border-zinc-500'} flex flex-col md:flex-row justify-between items-center gap-8 group cursor-pointer`}
+            >
+                <div className="flex items-center gap-6">
+                    <div className={`w-20 h-20 rounded-[2rem] flex items-center justify-center ${activePlan ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30' : 'bg-zinc-800 text-zinc-500'}`}>
+                        {activePlan?.current_block === 'morning' ? <Sun size={40} /> : activePlan?.current_block === 'afternoon' ? <Moon size={40} /> : activePlan?.current_block === 'break' ? <Coffee size={40} /> : <PlayCircle size={40} />}
+                    </div>
+                    <div>
+                        <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">{activePlan ? `Mission: ${activePlan.current_block.toUpperCase()}` : 'Keine Mission aktiv'}</h3>
+                        <p className="text-zinc-500 font-medium">{activePlan ? 'System synchronisiert. Gehe zum Planner für Details.' : 'Bereit für den taktischen Tagesplan?'}</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    {activePlan ? (
+                        <div className="px-6 py-3 bg-cyan-500/10 text-cyan-500 rounded-2xl font-black uppercase tracking-widest text-xs border border-cyan-500/20">
+                            Status: Online
+                        </div>
+                    ) : (
+                        <div className="px-6 py-3 bg-zinc-500/10 text-zinc-500 rounded-2xl font-black uppercase tracking-widest text-xs">
+                            Status: Standby
+                        </div>
+                    )}
+                    <div className="p-4 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-2xl group-hover:translate-x-2 transition-transform">
+                        <ChevronRight size={24} />
+                    </div>
+                </div>
+            </motion.div>
+        </Link>
+      </section>
+
+      {/* 3. TAGES MISSIONEN */}
       <section className="mb-12">
         <div className="flex items-center gap-4 mb-8">
             <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20">
                 <Target className="text-amber-500" size={24} />
             </div>
-            <h2 className="text-3xl font-black tracking-tight">Tages-Missionen</h2>
+            <h2 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-zinc-100">Tages-Missionen</h2>
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -376,7 +399,7 @@ export default function SuperDashboard() {
                     </div>
                   )}
                 </div>
-                <h4 className="font-black text-lg mb-1">{quest.label}</h4>
+                <h4 className="font-black text-lg mb-1 text-zinc-900 dark:text-zinc-100">{quest.label}</h4>
                 <div className="flex justify-between items-end mb-4">
                     <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">{quest.current} / {quest.target}</span>
                     <span className={`text-[10px] font-black uppercase ${isComplete ? 'text-emerald-500' : 'text-amber-500'}`}>+{quest.xp} XP</span>
@@ -394,7 +417,7 @@ export default function SuperDashboard() {
         </div>
       </section>
 
-      {/* 3. CORE STATS */}
+      {/* 4. CORE STATS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
         {[
           { label: 'Neural Decks', val: stats.decks, icon: Layers, href: '/learn', color: 'from-blue-500 to-cyan-400' },
@@ -414,18 +437,18 @@ export default function SuperDashboard() {
                 <ChevronRight size={24} className="text-zinc-300 dark:text-zinc-600 group-hover:translate-x-2 group-hover:text-cyan-500 transition-all" />
               </div>
               <p className="text-zinc-500 dark:text-zinc-400 font-black text-xs uppercase tracking-widest mb-2">{item.label}</p>
-              <h2 className="text-6xl font-black tracking-tighter">{item.val}</h2>
+              <h2 className="text-6xl font-black tracking-tighter text-zinc-900 dark:text-zinc-100">{item.val}</h2>
             </motion.div>
           </Link>
         ))}
       </div>
 
-      {/* 4. ANALYTICS & RADAR HUB */}
+      {/* 5. ANALYTICS & RADAR HUB */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
         
         {/* FSRS Distribution */}
         <div className={`p-10 rounded-[3rem] ${glassClass}`}>
-          <h3 className="text-2xl font-black mb-10 flex items-center gap-4">
+          <h3 className="text-2xl font-black mb-10 flex items-center gap-4 text-zinc-900 dark:text-zinc-100">
             <BarChart3 className="text-cyan-500" /> Neural Distribution
           </h3>
           <div className="grid grid-cols-2 gap-8">
@@ -435,15 +458,13 @@ export default function SuperDashboard() {
                 { label: 'Review', val: analytics.cardStates.review, color: 'bg-cyan-500', icon: '⭐' }, 
                 { label: 'Meister', val: analytics.cardStates.mastered, color: 'bg-amber-500', icon: '👑' }
             ].map((state) => {
-              // Berechnung der Breite in % relativ zur Gesamtanzahl (Minimum 2% damit man was sieht)
               const percent = stats.cards > 0 ? (state.val / stats.cards) * 100 : 0;
               const displayWidth = state.val > 0 ? Math.max(percent, 2) : 0;
-              
               return (
                 <div key={state.label} className="space-y-3">
                   <div className="flex justify-between items-end px-1">
                     <span className="text-xs font-black uppercase text-zinc-500">{state.icon} {state.label}</span>
-                    <span className="text-lg font-black">{state.val}</span>
+                    <span className="text-lg font-black text-zinc-900 dark:text-zinc-100">{state.val}</span>
                   </div>
                   <div className="w-full h-2.5 bg-black/10 dark:bg-white/5 rounded-full overflow-hidden">
                     <motion.div 
@@ -459,12 +480,11 @@ export default function SuperDashboard() {
           </div>
         </div>
 
-        {/* INTEGRATED RADAR (NEXT EXAM) */}
+        {/* NEXT EXAM */}
         <div className={`p-10 rounded-[3rem] ${glassClass} flex flex-col justify-between border-2 border-transparent ${nextExam ? 'border-red-500/20' : ''}`}>
-          <h3 className="text-2xl font-black mb-6 flex items-center gap-4">
+          <h3 className="text-2xl font-black mb-6 flex items-center gap-4 text-zinc-900 dark:text-zinc-100">
             <Target className="text-red-500" /> Next Up
           </h3>
-          
           {nextExam ? (
              <div className="flex-1 flex flex-col justify-center items-center text-center space-y-6">
                 <div className="w-24 h-24 bg-red-500 text-white rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(239,68,68,0.4)] animate-pulse">
@@ -492,7 +512,7 @@ export default function SuperDashboard() {
         </div>
       </div>
 
-      {/* 5. WIDGET GRID */}
+      {/* 6. WIDGET GRID */}
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-12">
         
         {/* PLAYER 1: QUOTES */}
@@ -506,13 +526,13 @@ export default function SuperDashboard() {
               <AnimatePresence mode='wait'>
                  {isEditingQuote ? (
                     <motion.div key="edit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full space-y-4">
-                       <textarea autoFocus value={tempQuoteText} onChange={(e) => setTempQuoteText(e.target.value)} className="w-full h-32 bg-black/10 dark:bg-white/5 rounded-2xl p-4 resize-none outline-none font-medium" placeholder="Zitat..." />
-                       <input value={tempQuoteTitle} onChange={(e) => setTempQuoteTitle(e.target.value)} className="w-full bg-black/10 dark:bg-white/5 rounded-xl p-3 outline-none font-bold text-sm" placeholder="Titel/Quelle" />
+                       <textarea autoFocus value={tempQuoteText} onChange={(e) => setTempQuoteText(e.target.value)} className="w-full h-32 bg-black/10 dark:bg-white/5 rounded-2xl p-4 resize-none outline-none font-medium text-zinc-100" placeholder="Zitat..." />
+                       <input value={tempQuoteTitle} onChange={(e) => setTempQuoteTitle(e.target.value)} className="w-full bg-black/10 dark:bg-white/5 rounded-xl p-3 outline-none font-bold text-sm text-zinc-100" placeholder="Titel/Quelle" />
                        <button onClick={saveEditedQuote} className="w-full py-3 bg-cyan-500 text-white rounded-xl font-bold flex items-center justify-center gap-2"><Save size={16} /> Speichern</button>
                     </motion.div>
                  ) : (
                     <motion.div key={currentQuoteIndex} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} onClick={startEditing} className="cursor-pointer hover:opacity-80 transition-opacity">
-                       <p className="text-2xl font-black leading-tight mb-8">"{myQuotes[currentQuoteIndex].text}"</p>
+                       <p className="text-2xl font-black leading-tight mb-8 text-zinc-900 dark:text-zinc-100">"{myQuotes[currentQuoteIndex].text}"</p>
                        <div className="flex items-center gap-3"><div className="h-1 w-8 bg-cyan-500 rounded-full" /><p className="text-xs font-black uppercase tracking-widest text-zinc-500">{myQuotes[currentQuoteIndex].title}</p></div>
                     </motion.div>
                  )}
@@ -520,9 +540,9 @@ export default function SuperDashboard() {
            </div>
            {!isEditingQuote && (
              <div className="flex justify-between items-center mt-8">
-                <button onClick={() => setCurrentQuoteIndex(p => (p-1+myQuotes.length)%myQuotes.length)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronLeft size={20} /></button>
+                <button onClick={() => setCurrentQuoteIndex(p => (p-1+myQuotes.length)%myQuotes.length)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronLeft size={20} className="text-zinc-500" /></button>
                 <div className="flex gap-1">{myQuotes.map((_, i) => <div key={i} className={`h-1.5 rounded-full transition-all ${i === currentQuoteIndex ? 'w-6 bg-cyan-500' : 'w-1.5 bg-zinc-700'}`} />)}</div>
-                <button onClick={() => setCurrentQuoteIndex(p => (p+1)%myQuotes.length)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronRight size={20} /></button>
+                <button onClick={() => setCurrentQuoteIndex(p => (p+1)%myQuotes.length)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronRight size={20} className="text-zinc-500" /></button>
              </div>
            )}
         </div>
@@ -533,7 +553,7 @@ export default function SuperDashboard() {
               <motion.div key={currentTipIndex} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="relative z-10 flex flex-col items-center">
                  <div className="text-7xl mb-6 filter drop-shadow-[0_0_15px_rgba(168,85,247,0.4)]">{LEARNING_TIPS[currentTipIndex].emoji}</div>
                  <p className="text-[10px] font-black text-purple-500 uppercase tracking-[0.3em] mb-4">Neuro-Hack #{currentTipIndex + 1}</p>
-                 <p className="text-xl font-bold leading-relaxed px-4">{LEARNING_TIPS[currentTipIndex].text}</p>
+                 <p className="text-xl font-bold leading-relaxed px-4 text-zinc-900 dark:text-zinc-100">{LEARNING_TIPS[currentTipIndex].text}</p>
               </motion.div>
            </AnimatePresence>
            <div className="absolute bottom-8 w-full flex justify-center gap-1 left-0">{LEARNING_TIPS.map((_, i) => <div key={i} className={`h-1 rounded-full transition-all ${i === currentTipIndex ? 'w-4 bg-purple-500' : 'w-1 bg-zinc-700'}`} />)}</div>
@@ -543,17 +563,16 @@ export default function SuperDashboard() {
         <div className={`relative rounded-[3rem] overflow-hidden group ${glassClass} min-h-[420px] flex items-center justify-center`}>
            {dashboardImage ? (
               <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={dashboardImage} alt="Dashboard Widget" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-4">
-                   <button onClick={() => fileInputRef.current?.click()} className="px-6 py-3 bg-white text-black rounded-xl font-bold flex items-center gap-2 transition-transform"><ImageIcon size={18} /> Ändern</button>
-                   <button onClick={() => { setDashboardImage(null); localStorage.removeItem('electro_dashboard_img'); }} className="px-6 py-3 bg-red-500 text-white rounded-xl font-bold flex items-center gap-2"><Trash2 size={18} /> Entfernen</button>
-                </div>
+                 <img src={dashboardImage} alt="Dashboard Widget" className="w-full h-full object-cover" />
+                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-4">
+                    <button onClick={() => fileInputRef.current?.click()} className="px-6 py-3 bg-white text-black rounded-xl font-bold flex items-center gap-2 transition-transform"><ImageIcon size={18} /> Ändern</button>
+                    <button onClick={() => { setDashboardImage(null); localStorage.removeItem('electro_dashboard_img'); }} className="px-6 py-3 bg-red-500 text-white rounded-xl font-bold flex items-center gap-2"><Trash2 size={18} /> Entfernen</button>
+                 </div>
               </>
            ) : (
               <div onClick={() => fileInputRef.current?.click()} className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors p-8 text-center">
                  <div className="w-20 h-20 rounded-[2rem] border-2 border-dashed border-zinc-600 flex items-center justify-center mb-6 text-zinc-600"><ImageIcon size={32} /></div>
-                 <h4 className="font-black text-xl mb-2">Image Widget</h4>
+                 <h4 className="font-black text-xl mb-2 text-zinc-900 dark:text-zinc-100">Image Widget</h4>
                  <p className="text-zinc-500 text-sm font-medium">PNG/JPEG hier hochladen</p>
               </div>
            )}
@@ -561,11 +580,11 @@ export default function SuperDashboard() {
         </div>
       </section>
 
-      {/* 6. SYNC AREA */}
+      {/* 7. SYNC AREA */}
       <motion.section initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} className={`p-10 rounded-[4rem] border-4 border-dashed border-zinc-200 dark:border-zinc-800/50 ${glassClass}`}>
         <div className="flex items-center gap-5 mb-10">
              <div className="p-4 bg-amber-500 rounded-[1.5rem] text-white shadow-xl shadow-amber-500/20"><Zap size={32} fill="currentColor" /></div>
-             <div><h2 className="text-3xl font-black tracking-tighter uppercase leading-none">Neural Link Sync</h2><p className="text-zinc-500 font-medium mt-1">Importiere NotebookLM Daten für sofortiges XP-Wachstum</p></div>
+             <div><h2 className="text-3xl font-black tracking-tighter uppercase leading-none text-zinc-900 dark:text-zinc-100">Neural Link Sync</h2><p className="text-zinc-500 font-medium mt-1">Importiere NotebookLM Daten für XP-Wachstum</p></div>
         </div>
         <textarea value={jsonInput} onChange={(e) => setJsonInput(e.target.value)} placeholder='JSON-Stream hier einfügen...' className="w-full h-64 p-8 bg-black/10 dark:bg-black/20 border-2 border-white/5 rounded-[2.5rem] text-sm font-mono text-cyan-400 outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all placeholder:text-zinc-600 resize-none" />
         <button onClick={handleBulkImport} disabled={importing || !jsonInput} className="mt-10 w-full bg-white dark:bg-cyan-500 text-black dark:text-white py-8 rounded-[2rem] font-black text-xl transition-all disabled:opacity-30 active:scale-[0.98] shadow-2xl hover:shadow-cyan-500/20 flex items-center justify-center gap-4">{importing ? "Lädt..." : "Neural Sync Initialisieren"}</button>

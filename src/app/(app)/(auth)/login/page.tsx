@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link'; // WICHTIG: Link Komponente nutzen
+import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Settings, Shield, BarChart3, Lock, Mail, Github } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,12 +19,15 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load Remember Me
+  // Load Remember Me (Nur einmal beim Mounten)
   useEffect(() => {
-    const savedEmail = localStorage.getItem('electro_saved_email');
-    if (savedEmail) {
-      setEmail(savedEmail);
-      setRememberMe(true);
+    // Sicherstellen, dass wir im Browser sind
+    if (typeof window !== 'undefined') {
+        const savedEmail = localStorage.getItem('electro_saved_email');
+        if (savedEmail) {
+          setEmail(savedEmail);
+          setRememberMe(true);
+        }
     }
   }, []);
 
@@ -35,32 +38,39 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      if (rememberMe) localStorage.setItem('electro_saved_email', email);
-      else localStorage.removeItem('electro_saved_email');
+      if (rememberMe) {
+          localStorage.setItem('electro_saved_email', email);
+      } else {
+          localStorage.removeItem('electro_saved_email');
+      }
 
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      
       if (authError) throw authError;
 
       if (data.session) {
+        // Erfolgreich eingeloggt
+        router.refresh(); // Zuerst refresh, um Auth-Status in Server-Components zu updaten
         router.push('/dashboard'); 
-        router.refresh();
       }
     } catch (err: any) {
-      setError(err.message || 'Ein Fehler ist aufgetreten.');
+      console.error("Login Error:", err);
+      setError(err.message || 'Login fehlgeschlagen. Bitte Daten prüfen.');
       setLoading(false);
     }
   };
 
   const handleSocialLogin = async () => {
-    // Sicherstellen, dass wir im Browser sind
-    if (typeof window === 'undefined') return;
-    
-    await supabase.auth.signInWithOAuth({ 
-      provider: 'github', 
-      options: { 
-        redirectTo: `${window.location.origin}/auth/callback` 
-      } 
-    });
+    try {
+        await supabase.auth.signInWithOAuth({ 
+          provider: 'github', 
+          options: { 
+            redirectTo: `${window.location.origin}/auth/callback` 
+          } 
+        });
+    } catch (err: any) {
+        setError("Social Login fehlgeschlagen: " + err.message);
+    }
   };
 
   // --- RENDERING ---
@@ -187,7 +197,6 @@ export default function LoginPage() {
                      <input type="checkbox" className="hidden" checked={rememberMe} onChange={() => setRememberMe(!rememberMe)} />
                      <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors">Mich merken</span>
                   </label>
-                  {/* FIX: Echter Link statt # */}
                   <Link href="/reset-password" className="text-[#00d4ff] hover:text-[#00b8d4] hover:underline font-medium transition-colors">
                     Passwort vergessen?
                   </Link>
@@ -201,7 +210,6 @@ export default function LoginPage() {
                   {loading ? <Loader2 className="animate-spin" /> : 'Anmelden'}
                </button>
 
-               {/* FIX: Social Login UI eingebaut */}
                <div className="relative py-4">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-zinc-800" /></div>
                   <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#0a0e12] px-2 text-zinc-600 font-bold">Oder</span></div>
@@ -217,7 +225,6 @@ export default function LoginPage() {
 
                <p className="text-center text-zinc-500 text-sm mt-6">
                   Noch kein Konto? 
-                  {/* FIX: Echter Link statt # */}
                   <Link href="/register" className="text-[#00d4ff] font-bold hover:underline ml-1">
                     Jetzt registrieren
                   </Link>

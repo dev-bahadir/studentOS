@@ -6,24 +6,40 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CheckCircle, Circle, Clock, Plus, Trash2, Edit3, 
-  ArrowRight, ArrowLeft, MoreHorizontal, X, Save
+  ArrowRight, ArrowLeft, MoreHorizontal, X, Save,
+  Search, PenTool, Mic, Brain, Dumbbell, Zap
 } from 'lucide-react';
+import { SmartTaskModal } from '@/components/planner/SmartTaskModal';
 
 // Zentrale Glass-Klasse
 const glassClass = "bg-white/5 dark:bg-zinc-900/20 backdrop-blur-xl border border-white/10 dark:border-zinc-800/50 shadow-xl";
+
+// Icons für die Modi mappen
+const getModeIcon = (mode: string) => {
+  switch(mode) {
+    case 'scout': return <Search size={14} className="text-blue-500" />;
+    case 'scribe': return <PenTool size={14} className="text-yellow-500" />;
+    case 'teacher': return <Mic size={14} className="text-pink-500" />;
+    case 'tester': return <Brain size={14} className="text-red-500" />;
+    case 'gym': return <Dumbbell size={14} className="text-emerald-500" />;
+    default: return null;
+  }
+};
 
 type Task = {
   id: number;
   title: string;
   status: 'todo' | 'doing' | 'done';
+  mode?: string; // NEU
+  energy_req?: number; // NEU
   created_at: string;
 };
 
 export default function TaskBoard() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [newTask, setNewTask] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false); // Für Tactical Ops Modal
 
   // Edit State
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
@@ -36,9 +52,9 @@ export default function TaskBoard() {
   const fetchTasks = async () => {
     const { data, error } = await supabase
       .from('tasks')
-      .select('*')
+      .select('*') // Holt jetzt auch mode, energy_req etc.
       .eq('user_id', user?.id)
-      .order('created_at', { ascending: false }); // Neueste oben
+      .order('created_at', { ascending: false });
     
     if (error) console.error('Fehler beim Laden:', error);
     if (data) setTasks(data as Task[]);
@@ -48,23 +64,6 @@ export default function TaskBoard() {
   const awardXP = async (amount: number) => {
     if (!user) return;
     await supabase.rpc('increment_xp', { x: amount, row_id: user.id });
-  };
-
-  const addTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !newTask.trim()) return;
-
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert([{ title: newTask, status: 'todo', user_id: user.id }])
-      .select()
-      .single();
-
-    if (!error && data) {
-      setTasks([data as Task, ...tasks]);
-      setNewTask('');
-      awardXP(5); // XP für Erstellen
-    }
   };
 
   const saveEdit = async () => {
@@ -88,7 +87,7 @@ export default function TaskBoard() {
     
     if (task.status === 'todo' && direction === 'forward') newStatus = 'doing';
     else if (task.status === 'doing') {
-      if (direction === 'forward') { newStatus = 'done'; awardXP(15); } // Bonus XP für Abschluss
+      if (direction === 'forward') { newStatus = 'done'; awardXP(15); }
       if (direction === 'backward') newStatus = 'todo';
     } else if (task.status === 'done' && direction === 'backward') newStatus = 'doing';
 
@@ -159,10 +158,25 @@ export default function TaskBoard() {
                   <>
                     <p 
                       onClick={() => { setEditingTaskId(task.id); setEditTitle(task.title); }} 
-                      className="text-zinc-700 dark:text-zinc-200 text-sm font-bold leading-relaxed cursor-pointer hover:text-blue-500 transition-colors mb-4"
+                      className="text-zinc-700 dark:text-zinc-200 text-sm font-bold leading-relaxed cursor-pointer hover:text-blue-500 transition-colors mb-3"
                     >
                       {task.title}
                     </p>
+
+                    {/* METADATA BADGES (NEU) */}
+                    <div className="flex flex-wrap gap-2 mb-3">
+                        {task.mode && (
+                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-100 dark:bg-white/5 text-[10px] uppercase font-black tracking-widest text-zinc-500">
+                                {getModeIcon(task.mode)}
+                                {task.mode}
+                            </div>
+                        )}
+                        {task.energy_req && (
+                            <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${task.energy_req === 3 ? 'bg-red-500/10 text-red-500' : task.energy_req === 2 ? 'bg-orange-500/10 text-orange-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                                {task.energy_req === 3 ? 'High Energy' : task.energy_req === 2 ? 'Med Energy' : 'Low Energy'}
+                            </div>
+                        )}
+                    </div>
                     
                     <div className="flex justify-between items-center pt-2 border-t border-zinc-50 dark:border-white/5">
                         <div className="flex gap-1">
@@ -210,7 +224,7 @@ export default function TaskBoard() {
   return (
     <div className="w-full max-w-[1920px] p-4 md:p-8 lg:p-12 min-h-screen pb-40 bg-transparent text-zinc-900 dark:text-zinc-100 overflow-x-hidden flex flex-col">
       
-      {/* HEADER & INPUT */}
+      {/* HEADER & ACTION BUTTON */}
       <header className={`mb-8 p-8 rounded-[3rem] ${glassClass} flex flex-col xl:flex-row gap-8 items-center justify-between`}>
         <div className="w-full xl:w-auto text-center xl:text-left">
           <h1 className="text-4xl md:text-5xl font-black tracking-tighter flex items-center justify-center xl:justify-start gap-4 text-zinc-900 dark:text-white">
@@ -224,22 +238,13 @@ export default function TaskBoard() {
           </p>
         </div>
 
-        <form onSubmit={addTask} className="w-full max-w-2xl flex items-center gap-2 bg-zinc-100 dark:bg-black/20 p-2 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 focus-within:border-blue-500/50 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all">
-            <div className="pl-4 text-zinc-400"><Plus size={24} /></div>
-            <input 
-                value={newTask}
-                onChange={(e) => setNewTask(e.target.value)}
-                placeholder="Neue Aufgabe erstellen..."
-                className="flex-1 bg-transparent p-3 outline-none font-bold text-lg text-zinc-800 dark:text-white placeholder:font-medium placeholder:text-zinc-400"
-            />
-            <button 
-                type="submit" 
-                disabled={!newTask.trim()}
-                className="px-8 py-4 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-[1.5rem] font-black hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 shadow-lg"
-            >
-                Add
-            </button>
-        </form>
+        {/* NEU: Button öffnet Modal statt Input Feld */}
+        <button 
+            onClick={() => setIsModalOpen(true)}
+            className="w-full md:w-auto px-10 py-5 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-[2rem] font-black text-xl shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
+        >
+            <Plus size={24} /> New Mission
+        </button>
       </header>
 
       {/* KANBAN BOARD */}
@@ -255,6 +260,13 @@ export default function TaskBoard() {
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(100, 100, 100, 0.2); border-radius: 10px; }
       `}</style>
+
+      {/* MODAL INTEGRATION */}
+      <SmartTaskModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onTaskCreated={fetchTasks}
+      />
     </div>
   );
 }
