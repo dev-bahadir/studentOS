@@ -1,4 +1,4 @@
-import { SRSGrade } from '@/typess'; // Hier dein Dateiname!
+import { SRSGrade } from '@/types';
 
 export function calculateNextReview(
   grade: SRSGrade,

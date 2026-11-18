@@ -3,7 +3,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@/types": ["./src/types.ts"]
+      "@/types": ["./src/types/index.ts"]
     },
     "lib": [
       "dom",

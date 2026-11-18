@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { RotateCw, Check, X, Bookmark, Clock, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FSRSScheduler, Rating } from "@/lib/scheduler";
-import type { Flashcard } from "@/typess";
+import type { Flashcard } from "@/types";
 
 interface FlashcardGameProps {
   cards: Flashcard[];

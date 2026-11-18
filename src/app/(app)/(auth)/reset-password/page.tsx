@@ -17,10 +17,9 @@ export default function ResetPasswordPage() {
 
   // Optional: Prüfen ob Session da ist (Sicherheits-Check)
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
+    supabase.auth.getSession().then((res: any) => {
+      if (!res?.data?.session) {
         // Falls kein Token in der URL war, ist die Session null.
-        // Man könnte hier warnen, aber wir lassen das Formular erstmal stehen.
       }
     });
   }, []);

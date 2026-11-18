@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { calculateNextReview } from '@/lib/sm2';
-import { Flashcard } from '@/typess';
+import { Flashcard } from '@/types';
 import { useAuth } from '@/components/providers/AuthProvider';
 
 export interface FlashcardEngineState {

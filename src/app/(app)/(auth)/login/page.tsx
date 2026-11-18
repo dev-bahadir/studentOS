@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabaseClient';
-import { Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Settings, Shield, BarChart3, Lock, Mail, Github } from 'lucide-react';
+import { supabase, enableDemoMode } from '@/lib/supabaseClient';
+import { Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Settings, Shield, BarChart3, Lock, Mail, Github, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function LoginPage() {
@@ -214,6 +214,17 @@ export default function LoginPage() {
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-zinc-800" /></div>
                   <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#0a0e12] px-2 text-zinc-600 font-bold">Oder</span></div>
                </div>
+
+               <button
+                  type="button"
+                  onClick={() => {
+                    enableDemoMode();
+                    window.location.href = '/dashboard';
+                  }}
+                  className="w-full py-3.5 bg-cyan-500/15 border border-cyan-400/40 hover:bg-cyan-500/25 text-cyan-300 rounded-lg flex items-center justify-center gap-2.5 transition-all duration-300 font-black uppercase tracking-wider text-xs shadow-lg shadow-cyan-500/10"
+               >
+                  <Sparkles size={18} className="text-cyan-400" /> Live Portfolio Demo (Ohne Login)
+               </button>
 
                <button 
                   type="button" 
